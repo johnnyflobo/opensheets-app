@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "tsx scripts/dev.ts",
+    "dev": "next dev --turbopack",
+    "dev-env": "tsx scripts/dev.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
