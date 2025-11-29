@@ -109,6 +109,10 @@ export const auth = betterAuth({
       },
     },
   },
+  trustedOrigins: [
+    "https://opensheets-azure.vercel.app",
+    process.env.BETTER_AUTH_URL,
+  ].filter(Boolean) as string[],
 });
 
 // Aviso em desenvolvimento se Google OAuth não estiver configurado
