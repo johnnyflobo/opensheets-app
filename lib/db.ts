@@ -19,7 +19,19 @@ function getDb() {
     throw new Error("DATABASE_URL env variable is not set");
   }
 
-  _pool = globalForDb.pool ?? new Pool({ connectionString: DATABASE_URL });
+  // Configuração do pool com suporte a SSL para Supabase
+  const poolConfig: ConstructorParameters<typeof Pool>[0] = {
+    connectionString: DATABASE_URL,
+  };
+
+  // Se for Supabase (URL contém supabase.co), adicionar SSL
+  if (DATABASE_URL.includes("supabase.co")) {
+    poolConfig.ssl = {
+      rejectUnauthorized: false, // Supabase usa certificados válidos
+    };
+  }
+
+  _pool = globalForDb.pool ?? new Pool(poolConfig);
   _db = globalForDb.db ?? drizzle(_pool, { schema });
 
   if (process.env.NODE_ENV !== "production") {

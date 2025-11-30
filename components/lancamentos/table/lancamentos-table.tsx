@@ -69,6 +69,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
+import { ExportButton } from "@/components/export-button";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -708,6 +709,7 @@ export function LancamentosTable({
                   </span>
                 </Button>
               ) : null}
+              <ExportButton />
             </div>
           ) : (
             <span className={showFilters ? "hidden sm:block" : ""} />
