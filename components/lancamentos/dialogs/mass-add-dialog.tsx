@@ -24,7 +24,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { groupAndSortCategorias } from "@/lib/lancamentos/categoria-helpers";
-import { LANCAMENTO_PAYMENT_METHODS } from "@/lib/lancamentos/constants";
+import {
+  LANCAMENTO_CONDITIONS,
+  LANCAMENTO_PAYMENT_METHODS,
+  LANCAMENTO_TRANSACTION_TYPES,
+} from "@/lib/lancamentos/constants";
 import { getTodayDateString } from "@/lib/utils/date";
 import { createMonthOptions } from "@/lib/utils/period";
 import { RiAddLine, RiDeleteBinLine } from "@remixicon/react";
@@ -56,10 +60,10 @@ interface MassAddDialogProps {
 
 export interface MassAddFormData {
   fixedFields: {
-    transactionType?: string;
+    transactionType?: (typeof LANCAMENTO_TRANSACTION_TYPES)[number];
     pagadorId?: string;
-    paymentMethod?: string;
-    condition?: string;
+    paymentMethod?: (typeof LANCAMENTO_PAYMENT_METHODS)[number];
+    condition?: (typeof LANCAMENTO_CONDITIONS)[number];
     period?: string;
     contaId?: string;
     cartaoId?: string;
@@ -67,7 +71,7 @@ export interface MassAddFormData {
   transactions: Array<{
     purchaseDate: string;
     name: string;
-    amount: string;
+    amount: number;
     categoriaId?: string;
   }>;
 }
@@ -190,10 +194,10 @@ export function MassAddDialog({
     // Build form data
     const formData: MassAddFormData = {
       fixedFields: {
-        transactionType,
+        transactionType: transactionType as (typeof LANCAMENTO_TRANSACTION_TYPES)[number],
         pagadorId,
-        paymentMethod,
-        condition,
+        paymentMethod: paymentMethod as (typeof LANCAMENTO_PAYMENT_METHODS)[number],
+        condition: condition as (typeof LANCAMENTO_CONDITIONS)[number],
         period,
         contaId: paymentMethod !== "Cartão de crédito" ? contaId : undefined,
         cartaoId: paymentMethod === "Cartão de crédito" ? cartaoId : undefined,
@@ -201,7 +205,7 @@ export function MassAddDialog({
       transactions: transactions.map((t) => ({
         purchaseDate: t.purchaseDate,
         name: t.name.trim(),
-        amount: t.amount.trim(),
+        amount: Number(t.amount.replace(/[^0-9,.-]+/g, "").replace(",", ".")),
         categoriaId: t.categoriaId,
       })),
     };

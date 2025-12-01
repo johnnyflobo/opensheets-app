@@ -330,6 +330,7 @@ export function LancamentosPage({
         onAnticipate={handleAnticipate}
         onViewAnticipationHistory={handleViewAnticipationHistory}
         isSettlementLoading={(id) => settlementLoadingId === id}
+        selectedPeriod={selectedPeriod}
       />
 
       {allowCreate ? (

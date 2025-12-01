@@ -19,17 +19,23 @@ function getDb() {
     throw new Error("DATABASE_URL env variable is not set");
   }
 
-  // Configuração do pool com suporte a SSL para Supabase
+  // Configuração do pool
+  // Workaround para erro SELF_SIGNED_CERT_IN_CHAIN em desenvolvimento
+  if (process.env.NODE_ENV === "development") {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  }
+
   const poolConfig: ConstructorParameters<typeof Pool>[0] = {
     connectionString: DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false, // Permite conexões com certificados auto-assinados (comum em Neon/Supabase/etc)
+    },
   };
 
-  // Se for Supabase (URL contém supabase.co), adicionar SSL
-  if (DATABASE_URL.includes("supabase.co")) {
-    poolConfig.ssl = {
-      rejectUnauthorized: false, // Supabase usa certificados válidos
-    };
-  }
+  console.log("[DB] Initializing pool with config:", {
+    ...poolConfig,
+    connectionString: "REDACTED",
+  });
 
   _pool = globalForDb.pool ?? new Pool(poolConfig);
   _db = globalForDb.db ?? drizzle(_pool, { schema });

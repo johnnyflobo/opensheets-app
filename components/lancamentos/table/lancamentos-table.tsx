@@ -58,6 +58,7 @@ import {
   RiThumbUpFill,
   RiThumbUpLine,
   RiTimeLine,
+  RiUploadLine,
 } from "@remixicon/react";
 import {
   ColumnDef,
@@ -69,6 +70,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
+import { ImportDialog } from "../import/import-dialog";
 import { ExportButton } from "@/components/export-button";
 import Image from "next/image";
 import Link from "next/link";
@@ -593,6 +595,7 @@ type LancamentosTableProps = {
   isSettlementLoading?: (id: string) => boolean;
   showActions?: boolean;
   showFilters?: boolean;
+  selectedPeriod?: string;
 };
 
 export function LancamentosTable({
@@ -612,6 +615,7 @@ export function LancamentosTable({
   isSettlementLoading,
   showActions = true,
   showFilters = true,
+  selectedPeriod,
 }: LancamentosTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "purchaseDate", desc: true },
@@ -621,6 +625,7 @@ export function LancamentosTable({
     pageSize: 30,
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [importOpen, setImportOpen] = useState(false);
 
   const columns = useMemo(
     () =>
@@ -709,7 +714,16 @@ export function LancamentosTable({
                   </span>
                 </Button>
               ) : null}
-              <ExportButton />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setImportOpen(true)}
+              >
+                <RiUploadLine className="h-4 w-4 text-muted-foreground" />
+                Importar
+              </Button>
+              <ExportButton month={selectedPeriod} />
             </div>
           ) : (
             <span className={showFilters ? "hidden sm:block" : ""} />
@@ -854,6 +868,8 @@ export function LancamentosTable({
           )}
         </CardContent>
       </Card>
+
+      <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </TooltipProvider>
   );
 }

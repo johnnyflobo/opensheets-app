@@ -21,11 +21,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
-export function ExportButton() {
+export function ExportButton({ month }: { month?: string }) {
   const [loading, setLoading] = useState(false);
 
   async function fetchData() {
-    const data = await getExportData();
+    const data = await getExportData(month);
     if (!data || data.length === 0) {
       toast.warning("Nenhum lançamento encontrado para exportar.");
       return null;
@@ -115,6 +115,7 @@ export function ExportButton() {
         "Tipo",
         "Categoria",
         "Conta",
+        "Parcela",
       ];
       const tableRows = data.map((item) => [
         item.Data,
@@ -126,6 +127,7 @@ export function ExportButton() {
         item.Tipo,
         item.Categoria,
         item.Conta,
+        item.Parcela,
       ]);
 
       autoTable(doc, {

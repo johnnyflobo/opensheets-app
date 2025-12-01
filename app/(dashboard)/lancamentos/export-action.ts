@@ -4,13 +4,17 @@ import { lancamentos } from "@/db/schema";
 import { getUserId } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { mapLancamentosData } from "@/lib/lancamentos/page-helpers";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
-export async function getExportData() {
+export async function getExportData(month?: string) {
   const userId = await getUserId();
 
+  const whereClause = month
+    ? and(eq(lancamentos.userId, userId), eq(lancamentos.period, month))
+    : eq(lancamentos.userId, userId);
+
   const rows = await db.query.lancamentos.findMany({
-    where: eq(lancamentos.userId, userId),
+    where: whereClause,
     with: {
       pagador: true,
       conta: true,
@@ -23,18 +27,24 @@ export async function getExportData() {
   const data = mapLancamentosData(rows);
 
   // Flatten and format for Excel
-  return data.map((item) => ({
-    Data: new Date(item.purchaseDate).toLocaleDateString("pt-BR"),
-    Nome: item.name,
-    Valor: item.amount,
-    Tipo: item.transactionType === "receita" ? "Receita" : "Despesa",
-    Categoria: item.categoriaName || "Sem categoria",
-    Conta: item.contaName || item.cartaoName || "Sem conta",
-    "Forma de Pagamento": item.paymentMethod,
-    "Pago Para/De": item.pagadorName || "-",
-    "Parcela Atual": item.currentInstallment || "-",
-    "Total Parcelas": item.installmentCount || "-",
-    "Status": item.isSettled ? "Pago" : "Pendente",
-    "Observação": item.note || "",
-  }));
+  return data.map((item) => {
+    const parcelaInfo =
+      item.currentInstallment && item.installmentCount
+        ? `${item.currentInstallment}/${item.installmentCount}`
+        : "-";
+
+    return {
+      Data: new Date(item.purchaseDate).toLocaleDateString("pt-BR"),
+      Nome: item.name,
+      Valor: item.amount,
+      Tipo: item.transactionType === "Receita" ? "Receita" : "Despesa",
+      Categoria: item.categoriaName || "Sem categoria",
+      Conta: item.contaName || item.cartaoName || "Sem conta",
+      "Forma de Pagamento": item.paymentMethod,
+      "Pago Para/De": item.pagadorName || "-",
+      Parcela: parcelaInfo,
+      Status: item.isSettled ? "Pago" : "Pendente",
+      Observação: item.note || "",
+    };
+  });
 }
