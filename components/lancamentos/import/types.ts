@@ -9,11 +9,13 @@ export interface ColumnMapping {
   type?: string;
   category?: string;
   account?: string;
+  card?: string;
   paymentMethod?: string;
   pagador?: string;
   installments?: string;
   status?: string;
   note?: string;
+  period?: string;
 }
 
 export type ImportStep = "upload" | "mapping" | "preview" | "processing";
@@ -32,11 +34,13 @@ export interface NormalizedTransaction {
   type: "Receita" | "Despesa";
   category?: string;
   account?: string;
+  card?: string;
   paymentMethod?: string;
   pagador?: string;
   installments?: string;
   status?: string;
   note?: string;
+  period?: string;
   originalRow: CSVRow;
   isValid: boolean;
   validationError?: string;

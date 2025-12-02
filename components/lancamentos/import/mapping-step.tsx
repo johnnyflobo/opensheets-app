@@ -32,7 +32,44 @@ export function MappingStep({
 
   useEffect(() => {
     if (rows.length > 0) {
-      setColumns(Object.keys(rows[0]));
+      const cols = Object.keys(rows[0]);
+      setColumns(cols);
+
+      // Auto-mapping logic
+      const newMapping = { ...mapping };
+      let hasChanges = false;
+
+      const commonNames: Record<keyof ColumnMapping, string[]> = {
+        date: ["data", "date", "dt", "data_compra", "data_vencimento", "dia"],
+        description: ["descricao", "descrição", "description", "nome", "historico", "histórico", "estabelecimento"],
+        amount: ["valor", "amount", "total", "price", "preco", "preço"],
+        type: ["tipo", "type", "kind", "tipo_transacao"],
+        category: ["categoria", "category", "cat", "categoria_id"],
+        account: ["conta", "account", "wallet", "conta_id"],
+        card: ["cartao", "cartão", "card", "cartao_id"],
+        paymentMethod: ["forma_pagamento", "payment_method", "metodo_pagamento", "pagamento"],
+        pagador: ["pagador", "payer", "pagador_id"],
+        installments: ["parcela", "installments", "parcelas", "qtde_parcela"],
+        status: ["status", "estado", "situacao", "situação", "realizado", "pago"],
+        note: ["observacao", "observação", "note", "notes", "anotacao", "anotação", "memo"],
+        period: ["periodo", "período", "period", "competencia", "mes_referencia"]
+      };
+
+      (Object.keys(commonNames) as Array<keyof ColumnMapping>).forEach((key) => {
+        if (!newMapping[key]) {
+          const match = cols.find((col) => 
+            commonNames[key].some(name => col.toLowerCase().includes(name.toLowerCase()))
+          );
+          if (match) {
+            newMapping[key] = match;
+            hasChanges = true;
+          }
+        }
+      });
+
+      if (hasChanges) {
+        onMappingChange(newMapping);
+      }
     }
   }, [rows]);
 
@@ -46,11 +83,13 @@ export function MappingStep({
       const typeStr = mapping.type ? row[mapping.type] : undefined;
       const categoryStr = mapping.category ? row[mapping.category] : undefined;
       const accountStr = mapping.account ? row[mapping.account] : undefined;
+      const cardStr = mapping.card ? row[mapping.card] : undefined;
       const paymentMethodStr = mapping.paymentMethod ? row[mapping.paymentMethod] : undefined;
       const pagadorStr = mapping.pagador ? row[mapping.pagador] : undefined;
       const installmentsStr = mapping.installments ? row[mapping.installments] : undefined;
       const statusStr = mapping.status ? row[mapping.status] : undefined;
       const noteStr = mapping.note ? row[mapping.note] : undefined;
+      const periodStr = mapping.period ? row[mapping.period] : undefined;
 
       // Basic validation logic
       let isValid = true;
@@ -107,11 +146,13 @@ export function MappingStep({
         type,
         category: categoryStr,
         account: accountStr,
+        card: cardStr,
         paymentMethod: paymentMethodStr,
         pagador: pagadorStr,
         installments: installmentsStr,
         status: statusStr,
         note: noteStr,
+        period: periodStr,
         originalRow: row,
         isValid,
         validationError,
@@ -229,11 +270,32 @@ export function MappingStep({
         </div>
 
         <div className="space-y-2">
-          <Label>Conta/Cartão (Opcional)</Label>
+          <Label>Conta (Opcional)</Label>
           <Select
             value={mapping.account}
             onValueChange={(val) =>
               onMappingChange({ ...mapping, account: val })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione..." />
+            </SelectTrigger>
+            <SelectContent>
+              {columns.map((col) => (
+                <SelectItem key={col} value={col}>
+                  {col}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Cartão (Opcional)</Label>
+          <Select
+            value={mapping.card}
+            onValueChange={(val) =>
+              onMappingChange({ ...mapping, card: val })
             }
           >
             <SelectTrigger>
@@ -338,6 +400,25 @@ export function MappingStep({
           <Select
             value={mapping.note}
             onValueChange={(val) => onMappingChange({ ...mapping, note: val })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione..." />
+            </SelectTrigger>
+            <SelectContent>
+              {columns.map((col) => (
+                <SelectItem key={col} value={col}>
+                  {col}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Período (Opcional)</Label>
+          <Select
+            value={mapping.period}
+            onValueChange={(val) => onMappingChange({ ...mapping, period: val })}
           >
             <SelectTrigger>
               <SelectValue placeholder="Selecione..." />

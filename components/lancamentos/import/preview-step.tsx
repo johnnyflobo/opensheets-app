@@ -56,6 +56,10 @@ export function PreviewStep({
               <TableHead>Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Tipo</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead>Conta/Cartão</TableHead>
+              <TableHead>Pagador</TableHead>
+              <TableHead>Período</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -66,7 +70,7 @@ export function PreviewStep({
                 className={cn(!row.isValid && "bg-destructive/10")}
               >
                 <TableCell>{row.date}</TableCell>
-                <TableCell>{row.description}</TableCell>
+                <TableCell className="max-w-[200px] truncate" title={row.description}>{row.description}</TableCell>
                 <TableCell>
                   {row.amount.toLocaleString("pt-BR", {
                     style: "currency",
@@ -85,6 +89,12 @@ export function PreviewStep({
                     {row.type}
                   </Badge>
                 </TableCell>
+                <TableCell className="max-w-[150px] truncate" title={row.category}>{row.category || "-"}</TableCell>
+                <TableCell className="max-w-[150px] truncate" title={row.card || row.account}>
+                    {row.card ? `Cartão: ${row.card}` : row.account || "-"}
+                </TableCell>
+                <TableCell className="max-w-[150px] truncate" title={row.pagador}>{row.pagador || "-"}</TableCell>
+                <TableCell>{row.period || "-"}</TableCell>
                 <TableCell>
                   {row.isValid ? (
                     <span className="text-emerald-600 font-medium text-xs">OK</span>
