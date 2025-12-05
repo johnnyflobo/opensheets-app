@@ -110,7 +110,7 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
-    "https://opensheets-azure.vercel.app",
+    "https://opensheets-gamma.vercel.app",
     process.env.BETTER_AUTH_URL,
   ].filter(Boolean) as string[],
 });
