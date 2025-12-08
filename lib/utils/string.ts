@@ -20,7 +20,9 @@ export function normalizeOptionalString(
  * @returns Filename without path
  */
 export function normalizeFilePath(path: string | null | undefined): string {
-  return path?.split("/").filter(Boolean).pop() ?? "";
+  if (!path) return "";
+  const parts = path.split(/[/\\]/);
+  return parts[parts.length - 1] || "";
 }
 
 /**

@@ -3,6 +3,7 @@
 import { cartoes, contas } from "@/db/schema";
 import { type ActionResult, handleActionError } from "@/lib/actions/helpers";
 import { revalidateForEntity } from "@/lib/actions/helpers";
+import { loadLogoOptions } from "@/lib/logo/options";
 import {
   dayOfMonthSchema,
   noteSchema,
@@ -38,6 +39,7 @@ const cardBaseSchema = z.object({
     .trim()
     .min(1, "Selecione um logo."),
   contaId: uuidSchema("Conta"),
+  isMain: z.boolean().default(false),
 });
 
 const createCardSchema = cardBaseSchema;
@@ -63,6 +65,24 @@ async function assertAccountOwnership(userId: string, contaId: string) {
   }
 }
 
+async function assertLogoIsValid(logo: string) {
+  const options = await loadLogoOptions();
+  // normalizeFilePath might have been applied, but loadLogoOptions returns filenames.
+  // We check if the logo provided is in the list of allowed filenames.
+  if (!options.includes(logo)) {
+    throw new Error("Logo inválido ou não permitido.");
+  }
+}
+
+async function handleMainCardLogic(userId: string, isMain: boolean) {
+  if (isMain) {
+    await db
+      .update(cartoes)
+      .set({ isMain: false })
+      .where(eq(cartoes.userId, userId));
+  }
+}
+
 export async function createCardAction(
   input: CardCreateInput
 ): Promise<ActionResult> {
@@ -73,6 +93,11 @@ export async function createCardAction(
     await assertAccountOwnership(user.id, data.contaId);
 
     const logoFile = normalizeFilePath(data.logo);
+    await assertLogoIsValid(logoFile);
+
+    if (data.isMain) {
+      await handleMainCardLogic(user.id, true);
+    }
 
     await db.insert(cartoes).values({
       name: data.name,
@@ -85,6 +110,7 @@ export async function createCardAction(
       logo: logoFile,
       contaId: data.contaId,
       userId: user.id,
+      isMain: data.isMain,
     });
 
     revalidateForEntity("cartoes");
@@ -105,6 +131,11 @@ export async function updateCardAction(
     await assertAccountOwnership(user.id, data.contaId);
 
     const logoFile = normalizeFilePath(data.logo);
+    await assertLogoIsValid(logoFile);
+
+    if (data.isMain) {
+      await handleMainCardLogic(user.id, true);
+    }
 
     const [updated] = await db
       .update(cartoes)
@@ -118,6 +149,7 @@ export async function updateCardAction(
         limit: formatDecimalForDb(data.limit),
         logo: logoFile,
         contaId: data.contaId,
+        isMain: data.isMain,
       })
       .where(and(eq(cartoes.id, data.id), eq(cartoes.userId, user.id)))
       .returning();
