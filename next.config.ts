@@ -1,8 +1,21 @@
 import type { NextConfig } from "next";
 import dotenv from "dotenv";
+import withPWAInit from "@ducanh2912/next-pwa";
 
 // Carregar variáveis de ambiente explicitamente
 dotenv.config();
+
+const withPWA = withPWAInit({
+  dest: "public",
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  swcMinify: true,
+  disable: process.env.NODE_ENV === "development",
+  workboxOptions: {
+    disableDevLogs: true,
+  },
+});
 
 const nextConfig: NextConfig = {
   // Output standalone para Docker (gera build otimizado com apenas deps necessárias)
@@ -15,11 +28,17 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    remotePatterns: [new URL("https://lh3.googleusercontent.com/**")],
+    remotePatterns: [
+        {
+            protocol: "https",
+            hostname: "lh3.googleusercontent.com",
+            pathname: "**",
+        }
+    ],
   },
   devIndicators: {
     position: "bottom-right",
   },
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);
