@@ -1,0 +1,1 @@
+ALTER TABLE "cartoes" ADD COLUMN "is_main" boolean DEFAULT false NOT NULL;

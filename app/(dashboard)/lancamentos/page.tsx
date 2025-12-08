@@ -62,6 +62,9 @@ export default async function Page({ searchParams }: PageProps) {
 
   const estabelecimentos = await getRecentEstablishmentsAction();
 
+  const defaultCartaoId =
+    filterSources.cartaoRows.find((c) => c.isMain)?.id ?? null;
+
   return (
     <main className="flex flex-col gap-6">
       <MonthPicker />
@@ -78,6 +81,7 @@ export default async function Page({ searchParams }: PageProps) {
         contaCartaoFilterOptions={contaCartaoFilterOptions}
         selectedPeriod={selectedPeriod}
         estabelecimentos={estabelecimentos}
+        defaultCartaoId={defaultCartaoId}
       />
     </main>
   );

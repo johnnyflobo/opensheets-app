@@ -8,8 +8,8 @@ export type CardData = {
   name: string;
   brand: string | null;
   status: string | null;
-  closingDay: number;
-  dueDay: number;
+  closingDay: string;
+  dueDay: string;
   note: string | null;
   logo: string | null;
   limit: number | null;
@@ -17,6 +17,7 @@ export type CardData = {
   limitAvailable: number | null;
   contaId: string;
   contaName: string;
+  isMain: boolean;
 };
 
 export type AccountSimple = {
@@ -28,11 +29,11 @@ export type AccountSimple = {
 export async function fetchCardsForUser(userId: string): Promise<{
   cards: CardData[];
   accounts: AccountSimple[];
-  logoOptions: LogoOption[];
+  logoOptions: string[];
 }> {
   const [cardRows, accountRows, logoOptions, usageRows] = await Promise.all([
     db.query.cartoes.findMany({
-      orderBy: (card: typeof cartoes.$inferSelect, { desc }: { desc: (field: unknown) => unknown }) => [desc(card.name)],
+      orderBy: (card: any, { desc }: any) => [desc(card.name)],
       where: eq(cartoes.userId, userId),
       with: {
         conta: {
@@ -44,7 +45,7 @@ export async function fetchCardsForUser(userId: string): Promise<{
       },
     }),
     db.query.contas.findMany({
-      orderBy: (account: typeof contas.$inferSelect, { desc }: { desc: (field: unknown) => unknown }) => [desc(account.name)],
+      orderBy: (account: any, { desc }: any) => [desc(account.name)],
       where: eq(contas.userId, userId),
       columns: {
         id: true,
@@ -69,12 +70,12 @@ export async function fetchCardsForUser(userId: string): Promise<{
   ]);
 
   const usageMap = new Map<string, number>();
-  usageRows.forEach((row: { cartaoId: string | null; total: number | null }) => {
+  usageRows.forEach((row: any) => {
     if (!row.cartaoId) return;
     usageMap.set(row.cartaoId, Number(row.total ?? 0));
   });
 
-  const cards = cardRows.map((card) => ({
+  const cards = cardRows.map((card: any) => ({
     id: card.id,
     name: card.name,
     brand: card.brand,
@@ -98,9 +99,10 @@ export async function fetchCardsForUser(userId: string): Promise<{
     })(),
     contaId: card.contaId,
     contaName: card.conta?.name ?? "Conta não encontrada",
+    isMain: card.isMain ?? false,
   }));
 
-  const accounts = accountRows.map((account) => ({
+  const accounts = accountRows.map((account: any) => ({
     id: account.id,
     name: account.name,
     logo: account.logo,

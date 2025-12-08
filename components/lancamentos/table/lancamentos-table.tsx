@@ -626,6 +626,53 @@ export function LancamentosTable({
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [importOpen, setImportOpen] = useState(false);
+  const [isGroupedByCard, setIsGroupedByCard] = useState(false);
+
+  const groupedData = useMemo(() => {
+    if (!isGroupedByCard) {
+      return data;
+    }
+
+    const cardTransactions: Record<string, LancamentoItem[]> = {};
+    const otherTransactions: LancamentoItem[] = [];
+
+    data.forEach((item) => {
+      if (item.paymentMethod === "Cartão de crédito" && item.cartaoId) {
+        if (!cardTransactions[item.cartaoId]) {
+          cardTransactions[item.cartaoId] = [];
+        }
+        cardTransactions[item.cartaoId].push(item);
+      } else {
+        otherTransactions.push(item);
+      }
+    });
+
+    const groupedCardTransactions = Object.values(cardTransactions).map(
+      (group) => {
+        const firstItem = group[0];
+        const totalAmount = group.reduce(
+          (sum, item) => sum + (item.amount || 0),
+          0
+        );
+
+        return {
+          ...firstItem,
+          id: `grouped-${firstItem.cartaoId}`,
+          name: `Fatura - ${firstItem.cartaoName}`,
+          amount: totalAmount,
+          purchaseDate: firstItem.purchaseDate, // Use date of first item or maybe end of month?
+          installmentCount: null,
+          currentInstallment: null,
+          isDivided: false,
+          isAnticipated: false,
+          note: `${group.length} lançamentos agrupados`,
+          readonly: true, // Disable editing for grouped row
+        } as LancamentoItem;
+      }
+    );
+
+    return [...otherTransactions, ...groupedCardTransactions];
+  }, [data, isGroupedByCard]);
 
   const columns = useMemo(
     () =>
@@ -637,7 +684,7 @@ export function LancamentosTable({
         onAnticipate,
         onViewAnticipationHistory,
         isSettlementLoading: isSettlementLoading ?? (() => false),
-        showActions,
+        showActions: !isGroupedByCard, // Hide actions when grouped, or handle inside buildColumns
       }),
     [
       onEdit,
@@ -648,11 +695,12 @@ export function LancamentosTable({
       onViewAnticipationHistory,
       isSettlementLoading,
       showActions,
+      isGroupedByCard,
     ]
   );
 
   const table = useReactTable({
-    data,
+    data: groupedData,
     columns,
     state: {
       sorting,
@@ -722,6 +770,15 @@ export function LancamentosTable({
               >
                 <RiUploadLine className="h-4 w-4 text-muted-foreground" />
                 Importar
+              </Button>
+              <Button
+                variant={isGroupedByCard ? "secondary" : "outline"}
+                size="sm"
+                className="gap-2"
+                onClick={() => setIsGroupedByCard(!isGroupedByCard)}
+              >
+                <RiBankCard2Line className="h-4 w-4" />
+                {isGroupedByCard ? "Desagrupar Cartões" : "Agrupar Cartões"}
               </Button>
               <ExportButton month={selectedPeriod} />
             </div>

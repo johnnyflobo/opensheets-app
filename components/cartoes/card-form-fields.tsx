@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   DAYS_IN_MONTH,
   DEFAULT_CARD_BRANDS,
@@ -32,7 +33,7 @@ interface AccountOption {
 interface CardFormFieldsProps {
   values: CardFormValues;
   accountOptions: AccountOption[];
-  onChange: (field: keyof CardFormValues, value: string) => void;
+  onChange: (field: keyof CardFormValues, value: string | boolean) => void;
 }
 
 const ensureOption = (options: string[], value: string) => {
@@ -198,6 +199,22 @@ export function CardFormFields({
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:col-span-2">
+        <div className="flex items-center space-x-2 rounded-md border p-4">
+          <Switch
+            id="card-main"
+            checked={values.isMain}
+            onCheckedChange={(checked) => onChange("isMain", checked)}
+          />
+          <div className="flex-1 space-y-1">
+            <Label htmlFor="card-main">Cartão Principal</Label>
+            <p className="text-sm text-muted-foreground">
+              Define este cartão como a opção padrão para novos lançamentos.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2 sm:col-span-2">

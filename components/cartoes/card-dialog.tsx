@@ -72,6 +72,7 @@ const buildInitialValues = ({
     note: card?.note ?? "",
     logo: selectedLogo,
     contaId: card?.contaId ?? accounts[0]?.id ?? "",
+    isMain: card?.isMain ?? false,
   };
 };
 

@@ -238,6 +238,7 @@ export const cartoes = pgTable("cartoes", {
   contaId: uuid("conta_id")
     .notNull()
     .references(() => contas.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  isMain: boolean("is_main").default(false).notNull(),
 });
 
 export const faturas = pgTable("faturas", {

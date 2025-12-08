@@ -25,7 +25,7 @@ import MoneyValues from "../money-values";
 
 interface CardItemProps {
   name: string;
-  brand: string;
+  brand: string | null;
   status: string;
   closingDay: string;
   dueDay: string;
@@ -83,7 +83,7 @@ export function CardItem({
   const limitTotal = limit ?? null;
   const used =
     limitInUse ??
-    (limitTotal !== null && limitAvailable !== null
+    (limitTotal !== null && typeof limitAvailable === "number"
       ? Math.max(limitTotal - limitAvailable, 0)
       : limitTotal !== null
       ? 0
@@ -116,7 +116,7 @@ export function CardItem({
     return logo.startsWith("/") ? logo : `/logos/${logo}`;
   }, [logo]);
 
-  const brandAsset = useMemo(() => resolveBrandAsset(brand), [brand]);
+  const brandAsset = useMemo(() => resolveBrandAsset(brand ?? ""), [brand]);
 
   const isInactive = useMemo(
     () => status?.toLowerCase() === "inativo",
@@ -250,7 +250,7 @@ export function CardItem({
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col items-start gap-1">
                 <p className="text-sm font-semibold text-foreground">
-                  <MoneyValues amount={metrics[0].value} />
+                  <MoneyValues amount={metrics[0].value ?? 0} />
                 </p>
                 <span className="text-xs font-medium text-muted-foreground">
                   {metrics[0].label}
@@ -260,7 +260,7 @@ export function CardItem({
               <div className="flex flex-col items-center gap-1">
                 <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                   <span className="size-2 rounded-full bg-primary" />
-                  <MoneyValues amount={metrics[1].value} />
+                  <MoneyValues amount={metrics[1].value ?? 0} />
                 </p>
                 <span className="text-xs font-medium text-muted-foreground">
                   {metrics[1].label}
@@ -269,7 +269,7 @@ export function CardItem({
 
               <div className="flex flex-col items-end gap-1">
                 <p className="text-sm font-semibold text-foreground">
-                  <MoneyValues amount={metrics[2].value} />
+                  <MoneyValues amount={metrics[2].value ?? 0} />
                 </p>
                 <span className="text-xs font-medium text-muted-foreground">
                   {metrics[2].label}

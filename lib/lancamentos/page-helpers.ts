@@ -60,6 +60,7 @@ type ContaSluggedOption = BaseSluggedOption & {
 type CartaoSluggedOption = BaseSluggedOption & {
   kind: "cartao";
   logo: string | null;
+  isMain: boolean;
 };
 
 export type SluggedFilters = {
@@ -245,6 +246,7 @@ export const buildSluggedFilters = ({
       slug: contaCartaoSlugger(label),
       kind: "cartao" as const,
       logo: cartao.logo ?? null,
+      isMain: cartao.isMain,
     };
   });
 

@@ -1,7 +1,7 @@
 export type Card = {
   id: string;
   name: string;
-  brand: string;
+  brand: string | null;
   status: string;
   closingDay: string;
   dueDay: string;
@@ -12,6 +12,7 @@ export type Card = {
   contaName: string;
   limitInUse?: number | null;
   limitAvailable?: number | null;
+  isMain?: boolean;
 };
 
 export type CardFormValues = {
@@ -24,4 +25,5 @@ export type CardFormValues = {
   note: string;
   logo: string;
   contaId: string;
+  isMain: boolean;
 };
