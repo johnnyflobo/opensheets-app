@@ -3,6 +3,7 @@
 import { cartoes, contas } from "@/db/schema";
 import { type ActionResult, handleActionError } from "@/lib/actions/helpers";
 import { revalidateForEntity } from "@/lib/actions/helpers";
+import { loadLogoOptions } from "@/lib/logo/options";
 import {
   dayOfMonthSchema,
   noteSchema,
@@ -64,15 +65,6 @@ async function assertAccountOwnership(userId: string, contaId: string) {
   }
 }
 
-async function handleMainCardLogic(userId: string, isMain: boolean) {
-  if (isMain) {
-    await db
-      .update(cartoes)
-      .set({ isMain: false })
-      .where(eq(cartoes.userId, userId));
-  }
-}
-
 export async function createCardAction(
   input: CardCreateInput
 ): Promise<ActionResult> {
@@ -87,6 +79,11 @@ export async function createCardAction(
     }
 
     const logoFile = normalizeFilePath(data.logo);
+    await assertLogoIsValid(logoFile);
+
+    if (data.isMain) {
+      await handleMainCardLogic(user.id, true);
+    }
 
     await db.insert(cartoes).values({
       name: data.name,
@@ -124,6 +121,11 @@ export async function updateCardAction(
     }
 
     const logoFile = normalizeFilePath(data.logo);
+    await assertLogoIsValid(logoFile);
+
+    if (data.isMain) {
+      await handleMainCardLogic(user.id, true);
+    }
 
     const [updated] = await db
       .update(cartoes)
