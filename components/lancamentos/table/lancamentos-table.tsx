@@ -72,6 +72,8 @@ import {
 } from "@tanstack/react-table";
 import { ImportDialog } from "../import/import-dialog";
 import { ExportButton } from "@/components/export-button";
+import { MobileTransactionsList } from "../mobile-transactions-list";
+import { RiMenuLine } from "@remixicon/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -742,45 +744,93 @@ export function LancamentosTable({
       {showTopControls ? (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           {onCreate || onMassAdd ? (
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               {onCreate ? (
-                <Button onClick={onCreate} className="w-full sm:w-auto">
-                  <RiAddCircleLine className="size-4" />
+                <Button onClick={onCreate} className="flex-1 sm:flex-none">
+                  <RiAddCircleLine className="size-4 mr-2" />
                   Novo lançamento
                 </Button>
               ) : null}
-              {onMassAdd ? (
+
+              {/* Desktop Actions */}
+              <div className="hidden items-center gap-2 md:flex">
+                {onMassAdd ? (
+                  <Button
+                    onClick={onMassAdd}
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    title="Adicionar múltiplos"
+                  >
+                    <RiAddCircleFill className="size-4" />
+                  </Button>
+                ) : null}
                 <Button
-                  onClick={onMassAdd}
                   variant="outline"
-                  size="icon"
-                  className="shrink-0"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setImportOpen(true)}
                 >
-                  <RiAddCircleFill className="size-4" />
-                  <span className="sr-only">
-                    Adicionar múltiplos lançamentos
-                  </span>
+                  <RiUploadLine className="h-4 w-4 text-muted-foreground" />
+                  Importar
                 </Button>
-              ) : null}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => setImportOpen(true)}
-              >
-                <RiUploadLine className="h-4 w-4 text-muted-foreground" />
-                Importar
-              </Button>
-              <Button
-                variant={isGroupedByCard ? "secondary" : "outline"}
-                size="sm"
-                className="gap-2"
-                onClick={() => setIsGroupedByCard(!isGroupedByCard)}
-              >
-                <RiBankCard2Line className="h-4 w-4" />
-                {isGroupedByCard ? "Desagrupar Cartões" : "Agrupar Cartões"}
-              </Button>
-              <ExportButton month={selectedPeriod} />
+                <Button
+                  variant={isGroupedByCard ? "secondary" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setIsGroupedByCard(!isGroupedByCard)}
+                >
+                  <RiBankCard2Line className="h-4 w-4" />
+                  {isGroupedByCard ? "Desagrupar Cartões" : "Agrupar Cartões"}
+                </Button>
+                <ExportButton month={selectedPeriod} />
+              </div>
+
+              {/* Mobile Actions Menu */}
+              <div className="md:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <RiMenuLine className="size-4" />
+                      <span className="sr-only">Menu de ações</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onMassAdd && (
+                      <DropdownMenuItem onSelect={onMassAdd}>
+                        <RiAddCircleFill className="size-4 mr-2" />
+                        Adicionar múltiplos
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onSelect={() => setImportOpen(true)}>
+                      <RiUploadLine className="size-4 mr-2" />
+                      Importar CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => setIsGroupedByCard(!isGroupedByCard)}
+                    >
+                      <RiBankCard2Line className="size-4 mr-2" />
+                      {isGroupedByCard
+                        ? "Desagrupar Cartões"
+                        : "Agrupar Cartões"}
+                    </DropdownMenuItem>
+                    {/* Export is tricky inside dropdown if it performs a download directly. 
+                        If ExportButton has its own UI (popover), it might conflict. 
+                        Assuming ExportButton is simple for now or we just render it outside on mobile if critical. 
+                        Let's try to put a separator and just render the ExportButton trigger? 
+                        Actually ExportButton is a client component that triggers a download. 
+                        Let's just replicate the trigger here if possible or just hide it on mobile if user didn't explicitly ask for it *in* the menu (they did).
+                        "botoes de exportar , importar e agupamento de cartao pode ser recolhido em uma menu"
+                        
+                        We can't easily wrap ExportButton in a MenuItem if it returns a Button.
+                        Workaround: Render it in the menu as a custom item or just a div.
+                    */}
+                    <div className="p-2">
+                       <ExportButton month={selectedPeriod} className="w-full justify-start" />
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           ) : (
             <span className={showFilters ? "hidden sm:block" : ""} />
@@ -827,7 +877,22 @@ export function LancamentosTable({
         </div>
       ) : null}
 
-      <Card className="py-2">
+      {/* Mobile List View - Visible only on mobile */}
+      <div className="md:hidden">
+         <MobileTransactionsList
+          data={groupedData}
+          onEdit={onEdit}
+          onConfirmDelete={onConfirmDelete}
+          onViewDetails={onViewDetails}
+          onToggleSettlement={onToggleSettlement}
+          onAnticipate={onAnticipate}
+          onViewAnticipationHistory={onViewAnticipationHistory}
+          isSettlementLoading={isSettlementLoading ?? (() => false)}
+        />
+      </div>
+
+      {/* Desktop Table View - Hidden on mobile */}
+      <Card className="hidden py-2 md:block">
         <CardContent className="px-2 py-4 sm:px-4">
           {hasRows ? (
             <>

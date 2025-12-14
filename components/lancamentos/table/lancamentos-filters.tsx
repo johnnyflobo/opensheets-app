@@ -34,6 +34,15 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { RiFilter3Line } from "@remixicon/react";
+import {
   LANCAMENTO_CONDITIONS,
   LANCAMENTO_PAYMENT_METHODS,
   LANCAMENTO_TRANSACTION_TYPES,
@@ -243,221 +252,273 @@ export function LancamentosFilters({
 
   const [categoriaOpen, setCategoriaOpen] = useState(false);
 
+  // Count active filters
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (getParamValue("transacao") !== FILTER_EMPTY_VALUE) count++;
+    if (getParamValue("condicao") !== FILTER_EMPTY_VALUE) count++;
+    if (getParamValue("pagamento") !== FILTER_EMPTY_VALUE) count++;
+    if (getParamValue("pagador") !== FILTER_EMPTY_VALUE) count++;
+    if (getParamValue("categoria") !== FILTER_EMPTY_VALUE) count++;
+    if (getParamValue("contaCartao") !== FILTER_EMPTY_VALUE) count++;
+    return count;
+  }, [searchParams, getParamValue]);
+
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <FilterSelect
-        param="transacao"
-        placeholder="Tipo de Lançamento"
-        options={buildStaticOptions(LANCAMENTO_TRANSACTION_TYPES)}
-        widthClass="w-[130px]"
-        disabled={isPending}
-        getParamValue={getParamValue}
-        onChange={handleFilterChange}
-        renderContent={(label) => (
-          <TransactionTypeSelectContent label={label} />
-        )}
-      />
-
-      <FilterSelect
-        param="condicao"
-        placeholder="Condição"
-        options={buildStaticOptions(LANCAMENTO_CONDITIONS)}
-        widthClass="w-[130px]"
-        disabled={isPending}
-        getParamValue={getParamValue}
-        onChange={handleFilterChange}
-        renderContent={(label) => <ConditionSelectContent label={label} />}
-      />
-
-      <FilterSelect
-        param="pagamento"
-        placeholder="Pagamento"
-        options={buildStaticOptions(LANCAMENTO_PAYMENT_METHODS)}
-        widthClass="w-[130px]"
-        disabled={isPending}
-        getParamValue={getParamValue}
-        onChange={handleFilterChange}
-        renderContent={(label) => <PaymentMethodSelectContent label={label} />}
-      />
-
-      <Select
-        value={getParamValue("pagador")}
-        onValueChange={(value) =>
-          handleFilterChange(
-            "pagador",
-            value === FILTER_EMPTY_VALUE ? null : value
-          )
-        }
-        disabled={isPending}
-      >
-        <SelectTrigger
-          className="w-[150px] text-sm border-dashed"
-          disabled={isPending}
-        >
-          <span className="truncate">
-            {selectedPagador ? (
-              <PagadorSelectContent
-                label={selectedPagador.label}
-                avatarUrl={selectedPagador.avatarUrl}
-              />
-            ) : (
-              "Pagador"
-            )}
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={FILTER_EMPTY_VALUE}>Todos</SelectItem>
-          {pagadorSelectOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              <PagadorSelectContent
-                label={option.label}
-                avatarUrl={option.avatarUrl}
-              />
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Popover open={categoriaOpen} onOpenChange={setCategoriaOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={categoriaOpen}
-            className="w-[150px] justify-between text-sm border-dashed border-input"
-            disabled={isPending}
-          >
-            <span className="truncate flex items-center gap-2">
-              {selectedCategoria ? (
-                <CategoriaSelectContent
-                  label={selectedCategoria.label}
-                  icon={selectedCategoria.icon}
-                />
-              ) : (
-                "Categoria"
-              )}
-            </span>
-            <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-[220px] p-0">
-          <Command>
-            <CommandInput placeholder="Buscar categoria..." />
-            <CommandList>
-              <CommandEmpty>Nada encontrado.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem
-                  value={FILTER_EMPTY_VALUE}
-                  onSelect={() => {
-                    handleFilterChange("categoria", null);
-                    setCategoriaOpen(false);
-                  }}
-                >
-                  Todas
-                  {categoriaValue === FILTER_EMPTY_VALUE ? (
-                    <CheckIcon className="ml-auto size-4" />
-                  ) : null}
-                </CommandItem>
-                {categoriaOptions.map((option) => (
-                  <CommandItem
-                    key={option.slug}
-                    value={option.slug}
-                    onSelect={() => {
-                      handleFilterChange("categoria", option.slug);
-                      setCategoriaOpen(false);
-                    }}
-                  >
-                    <CategoriaSelectContent
-                      label={option.label}
-                      icon={option.icon}
-                    />
-                    {categoriaValue === option.slug ? (
-                      <CheckIcon className="ml-auto size-4" />
-                    ) : null}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-
-      <Select
-        value={getParamValue("contaCartao")}
-        onValueChange={(value) =>
-          handleFilterChange(
-            "contaCartao",
-            value === FILTER_EMPTY_VALUE ? null : value
-          )
-        }
-        disabled={isPending}
-      >
-        <SelectTrigger
-          className="w-[150px] text-sm border-dashed"
-          disabled={isPending}
-        >
-          <span className="truncate">
-            {selectedContaCartao ? (
-              <ContaCartaoSelectContent
-                label={selectedContaCartao.label}
-                logo={selectedContaCartao.logo}
-                isCartao={selectedContaCartao.kind === "cartao"}
-              />
-            ) : (
-              "Conta/Cartão"
-            )}
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={FILTER_EMPTY_VALUE}>Todos</SelectItem>
-          {contaOptions.length > 0 ? (
-            <SelectGroup>
-              <SelectLabel>Contas</SelectLabel>
-              {contaOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  <ContaCartaoSelectContent
-                    label={option.label}
-                    logo={option.logo}
-                    isCartao={false}
-                  />
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          ) : null}
-          {cartaoOptions.length > 0 ? (
-            <SelectGroup>
-              <SelectLabel>Cartões</SelectLabel>
-              {cartaoOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  <ContaCartaoSelectContent
-                    label={option.label}
-                    logo={option.logo}
-                    isCartao={true}
-                  />
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          ) : null}
-        </SelectContent>
-      </Select>
-
+    <div className={cn("flex items-center gap-2", className)}>
       <Input
         value={searchValue}
         onChange={(event) => setSearchValue(event.target.value)}
-        placeholder="Buscar"
+        placeholder="Buscar lançamentos..."
         aria-label="Buscar lançamentos"
-        className="w-[150px] text-sm border-dashed"
+        className="h-9 flex-1 lg:max-w-[300px]"
       />
 
-      <Button
-        type="button"
-        variant="link"
-        size="sm"
-        onClick={handleReset}
-        disabled={isPending}
-      >
-        Limpar
-      </Button>
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant="outline" size="sm" className="h-9 gap-2">
+             <RiFilter3Line className="size-4" />
+             <span>Filtros</span>
+             {activeFiltersCount > 0 && (
+                <Badge variant="secondary" className="px-1.5 h-5 min-w-5 flex items-center justify-center text-[10px]">
+                    {activeFiltersCount}
+                </Badge>
+             )}
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="right" className="w-full sm:w-[400px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Filtros</SheetTitle>
+          </SheetHeader>
+          <div className="mt-6 flex flex-col gap-4">
+             <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">Tipo de Transação</span>
+                <FilterSelect
+                    param="transacao"
+                    placeholder="Todos os tipos"
+                    options={buildStaticOptions(LANCAMENTO_TRANSACTION_TYPES)}
+                    widthClass="w-full"
+                    disabled={isPending}
+                    getParamValue={getParamValue}
+                    onChange={handleFilterChange}
+                    renderContent={(label) => (
+                    <TransactionTypeSelectContent label={label} />
+                    )}
+                />
+             </div>
+
+             <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">Condição</span>
+                 <FilterSelect
+                    param="condicao"
+                    placeholder="Todas as condições"
+                    options={buildStaticOptions(LANCAMENTO_CONDITIONS)}
+                    widthClass="w-full"
+                    disabled={isPending}
+                    getParamValue={getParamValue}
+                    onChange={handleFilterChange}
+                    renderContent={(label) => <ConditionSelectContent label={label} />}
+                />
+             </div>
+
+             <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">Forma de Pagamento</span>
+                <FilterSelect
+                    param="pagamento"
+                    placeholder="Todas as formas"
+                    options={buildStaticOptions(LANCAMENTO_PAYMENT_METHODS)}
+                    widthClass="w-full"
+                    disabled={isPending}
+                    getParamValue={getParamValue}
+                    onChange={handleFilterChange}
+                    renderContent={(label) => <PaymentMethodSelectContent label={label} />}
+                />
+             </div>
+
+             <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">Pagador</span>
+                <Select
+                    value={getParamValue("pagador")}
+                    onValueChange={(value) =>
+                    handleFilterChange(
+                        "pagador",
+                        value === FILTER_EMPTY_VALUE ? null : value
+                    )
+                    }
+                    disabled={isPending}
+                >
+                    <SelectTrigger
+                    className="w-full text-sm border-dashed"
+                    disabled={isPending}
+                    >
+                    <span className="truncate">
+                        {selectedPagador ? (
+                        <PagadorSelectContent
+                            label={selectedPagador.label}
+                            avatarUrl={selectedPagador.avatarUrl}
+                        />
+                        ) : (
+                        "Todos os pagadores"
+                        )}
+                    </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value={FILTER_EMPTY_VALUE}>Todos</SelectItem>
+                    {pagadorSelectOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                        <PagadorSelectContent
+                            label={option.label}
+                            avatarUrl={option.avatarUrl}
+                        />
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+             </div>
+
+             <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">Categoria</span>
+                 <Popover open={categoriaOpen} onOpenChange={setCategoriaOpen}>
+                    <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={categoriaOpen}
+                        className="w-full justify-between text-sm border-dashed border-input"
+                        disabled={isPending}
+                    >
+                        <span className="truncate flex items-center gap-2">
+                        {selectedCategoria ? (
+                            <CategoriaSelectContent
+                            label={selectedCategoria.label}
+                            icon={selectedCategoria.icon}
+                            />
+                        ) : (
+                            "Todas as categorias"
+                        )}
+                        </span>
+                        <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-[300px] p-0">
+                    <Command>
+                        <CommandInput placeholder="Buscar categoria..." />
+                        <CommandList>
+                        <CommandEmpty>Nada encontrado.</CommandEmpty>
+                        <CommandGroup>
+                            <CommandItem
+                            value={FILTER_EMPTY_VALUE}
+                            onSelect={() => {
+                                handleFilterChange("categoria", null);
+                                setCategoriaOpen(false);
+                            }}
+                            >
+                            Todas
+                            {categoriaValue === FILTER_EMPTY_VALUE ? (
+                                <CheckIcon className="ml-auto size-4" />
+                            ) : null}
+                            </CommandItem>
+                            {categoriaOptions.map((option) => (
+                            <CommandItem
+                                key={option.slug}
+                                value={option.slug}
+                                onSelect={() => {
+                                handleFilterChange("categoria", option.slug);
+                                setCategoriaOpen(false);
+                            }}
+                            >
+                                <CategoriaSelectContent
+                                label={option.label}
+                                icon={option.icon}
+                                />
+                                {categoriaValue === option.slug ? (
+                                <CheckIcon className="ml-auto size-4" />
+                                ) : null}
+                            </CommandItem>
+                            ))}
+                        </CommandGroup>
+                        </CommandList>
+                    </Command>
+                    </PopoverContent>
+                </Popover>
+             </div>
+
+             <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">Conta/Cartão</span>
+                <Select
+                    value={getParamValue("contaCartao")}
+                    onValueChange={(value) =>
+                    handleFilterChange(
+                        "contaCartao",
+                        value === FILTER_EMPTY_VALUE ? null : value
+                    )
+                    }
+                    disabled={isPending}
+                >
+                    <SelectTrigger
+                    className="w-full text-sm border-dashed"
+                    disabled={isPending}
+                    >
+                    <span className="truncate">
+                        {selectedContaCartao ? (
+                        <ContaCartaoSelectContent
+                            label={selectedContaCartao.label}
+                            logo={selectedContaCartao.logo}
+                            isCartao={selectedContaCartao.kind === "cartao"}
+                        />
+                        ) : (
+                        "Todas contas e cartões"
+                        )}
+                    </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value={FILTER_EMPTY_VALUE}>Todos</SelectItem>
+                    {contaOptions.length > 0 ? (
+                        <SelectGroup>
+                        <SelectLabel>Contas</SelectLabel>
+                        {contaOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                            <ContaCartaoSelectContent
+                                label={option.label}
+                                logo={option.logo}
+                                isCartao={false}
+                            />
+                            </SelectItem>
+                        ))}
+                        </SelectGroup>
+                    ) : null}
+                    {cartaoOptions.length > 0 ? (
+                        <SelectGroup>
+                        <SelectLabel>Cartões</SelectLabel>
+                        {cartaoOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                            <ContaCartaoSelectContent
+                                label={option.label}
+                                logo={option.logo}
+                                isCartao={true}
+                            />
+                            </SelectItem>
+                        ))}
+                        </SelectGroup>
+                    ) : null}
+                    </SelectContent>
+                </Select>
+             </div>
+
+             <Button
+                variant="destructive"
+                className="mt-4"
+                onClick={() => {
+                    handleReset();
+                    // Optionally close sheet here if we had control over open state
+                }}
+                disabled={isPending || activeFiltersCount === 0 && !searchValue}
+            >
+                Limpar Filtros
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
