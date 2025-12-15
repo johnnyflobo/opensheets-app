@@ -3,7 +3,14 @@ import { GeminiParser, ParsedLancamento } from "@/lib/telegram/gemini-parser";
 import { createLancamentoInternal } from "@/app/(dashboard)/lancamentos/actions";
 import { db } from "@/lib/db";
 import { lancamentos, user } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, gte, lte } from "drizzle-orm";
+import { fetchDashboardCardMetrics } from "@/lib/dashboard/metrics";
+import { fetchTopExpenses } from "@/lib/dashboard/expenses/top-expenses";
+import { fetchExpensesByCategory } from "@/lib/dashboard/categories/expenses-by-category";
+import { fetchRecentTransactions } from "@/lib/dashboard/recent-transactions";
+import { fetchTopExpenses } from "@/lib/dashboard/expenses/top-expenses";
+import { fetchExpensesByCategory } from "@/lib/dashboard/categories/expenses-by-category";
+import { fetchRecentTransactions } from "@/lib/dashboard/recent-transactions";
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ALLOWED_USER_ID = process.env.TELEGRAM_ALLOWED_USER_ID;
@@ -175,28 +182,30 @@ export async function POST(req: NextRequest) {
 
   // >>> COMANDO DE SALDO (Bypass IA) <<<
   if (text.toLowerCase().includes("saldo") || text.toLowerCase().includes("resumo")) {
-      await sendTelegramMessage(chatId, "🔍 Consultando gastos de hoje...");
+      await sendTelegramMessage(chatId, "📅 Calculando balanço do mês...");
       
       try {
-          // Data de hoje (início do dia para comparação correta se necessário, ou apenas objeto Date se o driver ignorar hora)
-          // Schema usa mode: "date", então espera um objeto Date.
-          const todayDate = new Date();
+          // Datas do Mês Atual
+          const now = new Date();
+          const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
           
-          const gastosHoje = await db.select({
-              total: sql<number>`sum(${lancamentos.amount})`
-          })
-          .from(lancamentos)
-          .where(
-              and(
-                  eq(lancamentos.purchaseDate, todayDate),
-                  eq(lancamentos.transactionType, "Despesa")
-                  // TODO: Filtrar por userId também se necessário: eq(lancamentos.userId, targetUserId)
-              )
+          // Reutilizar a MESMA lógica do Dashboard para garantir consistência
+          const metrics = await fetchDashboardCardMetrics(targetUserId, currentPeriod);
+
+          const receitas = metrics.receitas.current;
+          const despesas = metrics.despesas.current; // Já vem absoluto e somado corretamente pela função
+          const saldo = metrics.balanco.current;
+          
+          const monthName = now.toLocaleDateString('pt-BR', { month: 'long' });
+          const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+          await sendTelegramMessage(chatId, 
+            `💰 *Balanço de ${capitalizedMonth}:*\n\n` +
+            `📈 *Receitas:* R$ ${receitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n` +
+            `📉 *Despesas:* R$ ${despesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n` +
+            `---------------------------\n` +
+            `💵 *Saldo:* R$ ${saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
           );
-
-          const total = gastosHoje[0]?.total || 0;
-
-          await sendTelegramMessage(chatId, `📊 *Gastos de Hoje (${todayDate.toLocaleDateString('pt-BR')}):*\n\nR$ ${Number(total).toFixed(2)}`);
           return NextResponse.json({ status: "ok" });
 
       } catch (error) {
@@ -204,6 +213,144 @@ export async function POST(req: NextRequest) {
           await sendTelegramMessage(chatId, "❌ Erro ao consultar banco de dados. Verifique a conexão.");
           return NextResponse.json({ status: "error" });
       }
+  }
+
+  // >>> COMANDO DE GASTOS DA SEMANA <<<
+  if (text.toLowerCase().includes("semana")) {
+      await sendTelegramMessage(chatId, "📅 Calculando gastos da semana...");
+      
+      try {
+           // Calcular Início e Fim da Semana (Domingo a Sábado)
+           const now = new Date();
+           const firstDayOfWeek = new Date(now);
+           const dayOfWeek = now.getDay(); // 0 (Domingo) a 6 (Sábado)
+           const diff = now.getDate() - dayOfWeek; 
+           firstDayOfWeek.setDate(diff);
+           firstDayOfWeek.setHours(0, 0, 0, 0);
+
+           const lastDayOfWeek = new Date(firstDayOfWeek);
+           lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+           lastDayOfWeek.setHours(23, 59, 59, 999);
+
+           // Buscar APENAS Despesas da Semana
+           // Nota: Não usamos fetchDashboardCardMetrics aqui pois ele é focado em Mês.
+           // Vamos fazer uma query direta, mas mantendo coerência com filtros básicos.
+           const gastosSemana = await db.select({
+              total: sql<number>`sum(${lancamentos.amount})`
+           })
+           .from(lancamentos)
+           .where(
+              and(
+                  gte(lancamentos.purchaseDate, firstDayOfWeek),
+                  lte(lancamentos.purchaseDate, lastDayOfWeek),
+                  eq(lancamentos.transactionType, "Despesa"),
+                  eq(lancamentos.userId, targetUserId)
+              )
+           );
+
+           const totalSemana = Number(gastosSemana[0]?.total || 0);
+
+           const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+           const inicioStr = firstDayOfWeek.toLocaleDateString('pt-BR', options);
+           const fimStr = lastDayOfWeek.toLocaleDateString('pt-BR', options);
+
+           await sendTelegramMessage(chatId, 
+            `🗓️ *Gastos da Semana (${inicioStr} - ${fimStr}):*\n\n` +
+            `📉 R$ ${totalSemana.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+           );
+           return NextResponse.json({ status: "ok" });
+      } catch (error) {
+           console.error("Erro ao consultar semana:", error);
+           await sendTelegramMessage(chatId, "❌ Erro ao consultar banco de dados.");
+           return NextResponse.json({ status: "error" });
+      }
+      }
+  }
+
+  // >>> COMANDO TOP GASTOS <<<
+  if (text.toLowerCase().includes("top")) {
+      await sendTelegramMessage(chatId, "🏆 Buscando maiores gastos do mês...");
+      try {
+           const now = new Date();
+           const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+           
+           const data = await fetchTopExpenses(targetUserId, currentPeriod);
+           
+           if (!data.expenses.length) {
+               await sendTelegramMessage(chatId, "Nenhum gasto encontrado neste mês.");
+               return NextResponse.json({ status: "ok" });
+           }
+
+           // Top 5 apenas
+           const top5 = data.expenses.slice(0, 5).map((e, i) => 
+               `${i+1}. *${e.name}*: R$ ${e.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+           ).join("\n");
+
+           await sendTelegramMessage(chatId, `🏆 *Top Despesas de ${now.toLocaleDateString('pt-BR', { month: 'long' })}:*\n\n${top5}`);
+           return NextResponse.json({ status: "ok" });
+
+      } catch (error) {
+           console.error("Erro top gastos:", error);
+           return NextResponse.json({ status: "error" });
+      }
+  }
+
+  // >>> COMANDO CATEGORIAS <<<
+  if (text.toLowerCase().includes("categoria") || text.toLowerCase().includes("categorias")) {
+      await sendTelegramMessage(chatId, "🍕 Analisando categorias...");
+      try {
+           const now = new Date();
+           const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+           
+           const data = await fetchExpensesByCategory(targetUserId, currentPeriod);
+           
+           if (!data.categories.length) {
+                await sendTelegramMessage(chatId, "Nenhuma despesa categorizada neste mês.");
+                return NextResponse.json({ status: "ok" });
+           }
+
+           const list = data.categories.slice(0, 8).map(c => 
+               `▪️ *${c.categoryName}*: R$ ${c.currentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${c.percentageOfTotal.toFixed(1)}%)`
+           ).join("\n");
+
+           await sendTelegramMessage(chatId, `📊 *Gastos por Categoria:*\n\n${list}`);
+           return NextResponse.json({ status: "ok" });
+
+      } catch (error) {
+          console.error("Erro categorias:", error);
+          return NextResponse.json({ status: "error" });
+      }
+  }
+
+  // >>> COMANDO ULTIMOS LANCAMENTOS <<<
+  if (text.toLowerCase().includes("ultimo") || text.toLowerCase().includes("último")) {
+       await sendTelegramMessage(chatId, "📄 Buscando últimos lançamentos...");
+       try {
+           const now = new Date();
+           // O fetchRecentTransactions pede 'period', mas queremos ver os ultimos independente do mês? 
+           // A função original filtra por periodo (WHERE period = ...).
+           // Então vamos usar o periodo atual.
+           const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+           
+           const data = await fetchRecentTransactions(targetUserId, currentPeriod);
+           
+           if (!data.transactions.length) {
+               await sendTelegramMessage(chatId, "Nenhum lançamento recente neste mês.");
+               return NextResponse.json({ status: "ok" });
+           }
+
+           const list = data.transactions.map(t => {
+               const day = new Date(t.purchaseDate).getDate();
+               return `🗓️ ${day}: *${t.name}* - R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+           }).join("\n");
+
+           await sendTelegramMessage(chatId, `🆕 *Últimos Lançamentos:*\n\n${list}`);
+           return NextResponse.json({ status: "ok" });
+
+       } catch (error) {
+           console.error("Erro ultimos:", error);
+           return NextResponse.json({ status: "error" });
+       }
   }
 
   // 3. Processar com Gemini
