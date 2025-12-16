@@ -1098,7 +1098,7 @@ export async function updateLancamentoBulkAction(
       });
 
       await applyUpdates(
-        futureLancamentos.map((item) => ({
+        futureLancamentos.map((item: any) => ({
           id: item.id,
           purchaseDate: item.purchaseDate ?? null,
         }))
@@ -1125,7 +1125,7 @@ export async function updateLancamentoBulkAction(
       });
 
       await applyUpdates(
-        allLancamentos.map((item) => ({
+        allLancamentos.map((item: any) => ({
           id: item.id,
           purchaseDate: item.purchaseDate ?? null,
         }))
@@ -1360,12 +1360,12 @@ export async function deleteMultipleLancamentosAction(
     const notificationData = existing
       .filter(
         (
-          item
+          item: any
         ): item is typeof item & {
           pagadorId: NonNullable<typeof item.pagadorId>;
         } => Boolean(item.pagadorId)
       )
-      .map((item) => ({
+      .map((item: any) => ({
         pagadorId: item.pagadorId,
         name: item.name ?? null,
         amount: item.amount ?? null,
@@ -1426,9 +1426,9 @@ export async function getRecentEstablishmentsAction(): Promise<string[]> {
     const uniqueNames = Array.from(
       new Set(
         results
-          .map((r) => r.name)
+          .map((r: any) => r.name)
           .filter(
-            (name): name is string =>
+            (name: any): name is string =>
               name != null &&
               name.trim().length > 0 &&
               !name.toLowerCase().startsWith("pagamento fatura")
@@ -1437,7 +1437,7 @@ export async function getRecentEstablishmentsAction(): Promise<string[]> {
     );
 
     // Return top 50 most recent unique establishments
-    return uniqueNames.slice(0, 100);
+    return (uniqueNames as string[]).slice(0, 100);
   } catch (error) {
     console.error("Error fetching recent establishments:", error);
     return [];

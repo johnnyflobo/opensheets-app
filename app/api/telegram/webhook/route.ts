@@ -8,9 +8,7 @@ import { fetchDashboardCardMetrics } from "@/lib/dashboard/metrics";
 import { fetchTopExpenses } from "@/lib/dashboard/expenses/top-expenses";
 import { fetchExpensesByCategory } from "@/lib/dashboard/categories/expenses-by-category";
 import { fetchRecentTransactions } from "@/lib/dashboard/recent-transactions";
-import { fetchTopExpenses } from "@/lib/dashboard/expenses/top-expenses";
-import { fetchExpensesByCategory } from "@/lib/dashboard/categories/expenses-by-category";
-import { fetchRecentTransactions } from "@/lib/dashboard/recent-transactions";
+import { fetchExpensesByPurchaseDate } from "@/lib/dashboard/categories/expenses-by-purchase-date";
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ALLOWED_USER_ID = process.env.TELEGRAM_ALLOWED_USER_ID;
@@ -20,18 +18,33 @@ if (!TELEGRAM_TOKEN || !ALLOWED_USER_ID || !GOOGLE_API_KEY) {
   console.error("Faltam variáveis de ambiente para o Bot do Telegram.");
 }
 
+// Helper para escapar caracteres do MarkdownV2 (embora estejamos usando "Markdown" legacy, é bom prevenir)
+// Mas para "Markdown", os caracteres chatos são: * _ ` [
+function escapeMarkdown(text: string): string {
+    return text.replace(/[*_`\[]/g, ''); // Simplesmente remove os caracteres problemáticos para evitar erros
+}
+
 async function sendTelegramMessage(chatId: string | number, text: string, replyMarkup?: any) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
-  await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: text,
-      parse_mode: "Markdown",
-      reply_markup: replyMarkup,
-    }),
-  });
+  try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: text,
+          parse_mode: "Markdown",
+          reply_markup: replyMarkup,
+        }),
+      });
+      
+      if (!res.ok) {
+          const err = await res.text();
+          console.error("Erro ao enviar mensagem Telegram:", err);
+      }
+  } catch (error) {
+      console.error("Falha na requisição Telegram:", error);
+  }
 }
 
 async function editTelegramMessage(chatId: string | number, messageId: number, text: string) {
@@ -130,6 +143,8 @@ export async function POST(req: NextRequest) {
                   cartaoId: pendingData.accountType === 'cartao' ? pendingData.accountId : undefined,
                   installmentCount: pendingData.installmentCount,
                   purchaseDate: new Date().toISOString().split('T')[0], // Hoje
+                  isSplit: false,
+                  note: "", 
               }, targetUserIdCallback);
 
               if (result.success) {
@@ -264,7 +279,6 @@ export async function POST(req: NextRequest) {
            await sendTelegramMessage(chatId, "❌ Erro ao consultar banco de dados.");
            return NextResponse.json({ status: "error" });
       }
-      }
   }
 
   // >>> COMANDO TOP GASTOS <<<
@@ -340,8 +354,10 @@ export async function POST(req: NextRequest) {
            }
 
            const list = data.transactions.map(t => {
-               const day = new Date(t.purchaseDate).getDate();
-               return `🗓️ ${day}: *${t.name}* - R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+               const dateObj = new Date(t.purchaseDate);
+               const day = dateObj.getDate().toString().padStart(2, '0');
+               const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+               return `🗓️ ${day}/${month}: *${t.name}* - R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
            }).join("\n");
 
            await sendTelegramMessage(chatId, `🆕 *Últimos Lançamentos:*\n\n${list}`);
@@ -351,6 +367,84 @@ export async function POST(req: NextRequest) {
            console.error("Erro ultimos:", error);
            return NextResponse.json({ status: "error" });
        }
+  }
+
+  // >>> COMANDO REAL (Competência / Compra) <<<
+  if (text.toLowerCase().includes("real") || text.toLowerCase().includes("compra")) {
+      await sendTelegramMessage(chatId, "📅 Calculando gastos por data de compra...");
+      
+      try {
+           const now = new Date();
+           // Primeiro dia do mês
+           const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+           // Último dia do mês
+           const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+           endDate.setHours(23, 59, 59, 999);
+
+           // Extrair termo de busca (tudo após "real" ou "compra")
+           // Ex: "real mercado" -> "mercado"
+           const lowerText = text.toLowerCase();
+           let searchTerm = "";
+           
+           if (lowerText.startsWith("real ")) {
+               searchTerm = lowerText.replace("real ", "").trim();
+           } else if (lowerText.startsWith("compra ")) {
+               searchTerm = lowerText.replace("compra ", "").trim();
+           } else if (lowerText.startsWith("/real ")) {
+               searchTerm = lowerText.replace("/real ", "").trim();
+           }
+           
+           if (searchTerm) {
+               await sendTelegramMessage(chatId, `🔍 Filtrando por "${searchTerm}"...`);
+           }
+
+           const data = await fetchExpensesByPurchaseDate(targetUserId, startDate, endDate, searchTerm);
+           
+           if (!data.categories.length) {
+                await sendTelegramMessage(chatId, `Nenhuma despesa encontrada de competência neste mês${searchTerm ? ` para "${searchTerm}"` : ''}.`);
+                return NextResponse.json({ status: "ok" });
+           }
+
+           // Se tiver filtro e transações, mostrar detalhes
+           let detailsText = "";
+           
+           if (searchTerm && data.transactions?.length) {
+               detailsText = "\n📝 *Detalhamento:*\n" + data.transactions.map(t => {
+                   const dateObj = new Date(t.purchaseDate);
+                   const day = dateObj.getDate().toString().padStart(2, '0');
+                   const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                   const sanitizedName = escapeMarkdown(t.name);
+                   return `• ${day}/${month}: ${sanitizedName} - R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+               }).join("\n");
+           } else {
+               // Resumo padrão por categoria (top 10)
+               detailsText = data.categories.slice(0, 10).map(c => {
+                   const sanitizedCat = escapeMarkdown(c.categoryName);
+                   return `▪️ *${sanitizedCat}*: R$ ${c.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${c.percentageOfTotal.toFixed(1)}%)`;
+               }).join("\n");
+           }
+           
+           const monthName = now.toLocaleDateString('pt-BR', { month: 'long' });
+           const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+           const safeSearchTerm = escapeMarkdown(searchTerm);
+           const title = searchTerm 
+                ? `🛍️ *Gastos Reais: ${safeSearchTerm} (${capitalizedMonth})*`
+                : `🛍️ *Gastos Reais de ${capitalizedMonth} (Por Compra):*`;
+
+           await sendTelegramMessage(chatId, 
+            `${title}\n` +
+            `_Regime de Competência (Data da Compra)_\n\n` +
+            `${detailsText}\n` +
+            `---------------------------\n` +
+            `💰 *Total:* R$ ${data.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+           );
+           return NextResponse.json({ status: "ok" });
+
+      } catch (error) {
+          console.error("Erro gastos reais:", error);
+          return NextResponse.json({ status: "error" });
+      }
   }
 
   // 3. Processar com Gemini
@@ -365,22 +459,6 @@ export async function POST(req: NextRequest) {
   
   // AGORA sim passando o ID correto do usuário para o parser buscar o contexto (Categorias/Contas) do banco
   const parsedData = await parser.parseMessage(text, targetUserId);
-
-  // Como o app é single-user (opensheets), vamos pegar o PRIMEIRO user do banco para associar?
-  // O ideal seria mapear TelegramID -> InternalUserID.
-  // Para simplificar este MVP, vamos buscar o primeiro usuário do banco.
-  // **Importante**: No createLancamentoAction ele usa `getUser()` que pega da sessão.
-  // Como aqui é API, não tem sessão.
-  // Precisamos adaptar `createLancamentoAction` ou simular o contexto.
-  // A `createLancamentoAction` usa `getUser()` que depende de cookies. Isso vai FALHAR na API.
-  // SOLUÇÃO: Vamos modificar `createLancamentoAction` para aceitar userId opcional ou criar uma `createLancamentoInternal`.
-  // Por enquanto, vou assumir que vamos corrigir a action depois. Vamos focar no bot.
-  
-  // Mas espera, `createLancamentoAction` verifica auth.
-  // Vou precisar de uma função de serviço que não dependa de sessão web, ou mockar.
-  // Vou criar `lib/lancamentos/service.ts` depois?
-  // Não, vou tentar usar a action e se falhar, refatoro. (Vai falhar).
-  // Vou assumir que vou criar uma função `createLancamentoInternal` no arquivo de actions que bypassa auth.
 
   if (!parsedData) {
       await sendTelegramMessage(chatId, "❓ Não entendi. Tente algo como: 'Gastei 50 no mercado no débito'.");
