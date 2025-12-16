@@ -9,6 +9,7 @@ import { fetchTopExpenses } from "@/lib/dashboard/expenses/top-expenses";
 import { fetchExpensesByCategory } from "@/lib/dashboard/categories/expenses-by-category";
 import { fetchRecentTransactions } from "@/lib/dashboard/recent-transactions";
 import { fetchExpensesByPurchaseDate } from "@/lib/dashboard/categories/expenses-by-purchase-date";
+import { getLastTransaction, deleteTransaction, fetchInvoiceSummaries } from "@/lib/telegram/bot-actions";
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ALLOWED_USER_ID = process.env.TELEGRAM_ALLOWED_USER_ID;
@@ -79,6 +80,13 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ status: "ignored" });
       }
 
+      // Buscar User ID do DB para callbacks
+      const dbUserCallback = await db.select({ id: user.id }).from(user).limit(1);
+      if (!dbUserCallback.length) {
+          return NextResponse.json({ status: "error" });
+      }
+      const targetUserIdCallback = dbUserCallback[0].id;
+
       if (data.startsWith("add:")) {
           try {
               // Decodificar JSON do payload (add:{...})
@@ -109,27 +117,12 @@ export async function POST(req: NextRequest) {
               // Para o CALLBACK, precisamos buscar de novo?
               // SIM. O POST do callback roda do zero.
               
-              // Mas espere, eu movi a busca do usuário para ANTES do IF do callback?
-              // Vamos checar a estrutura do arquivo.
-              // O código original tinha:
-              // 1. Validar Callback -> IF (retorna)
-              // 2. Validar Mensagem -> Busca Usuário -> Logica
-              
-              // Se eu movi a busca de usuário para LOGO DEPOIS da validação de segurança da mensagem?
-              // Não, eu preciso garantir que a busca do usuário ocorra tanto para MSG quanto para CALLBACK se eu quiser usar.
-              // Mas no Callback eu já tinha adicionado a busca (Step 462).
-              // Então aqui no Callback está OK.
-              
-              // Onde eu editei no passo anterior foi na seção "2. Validar Mensagem de Texto".
-              // Então aqui dentro do IF do CALLBACK, mantenho a busca que já inseri.
-              // Só preciso garantir que não quebrou nada.
-              
               // (Mantendo o código do callback como estava na ultima edição 462)
-              const dbUserCallback = await db.select({ id: user.id }).from(user).limit(1);
-               if (!dbUserCallback.length) {
-                  return NextResponse.json({ status: "error" });
-              }
-              const targetUserIdCallback = dbUserCallback[0].id;
+              // const dbUserCallback = await db.select({ id: user.id }).from(user).limit(1);
+              //  if (!dbUserCallback.length) {
+              //     return NextResponse.json({ status: "error" });
+              // }
+              // const targetUserIdCallback = dbUserCallback[0].id;
 
               // Criar lançamento
               const result = await createLancamentoInternal({
@@ -148,7 +141,7 @@ export async function POST(req: NextRequest) {
               }, targetUserIdCallback);
 
               if (result.success) {
-                  await editTelegramMessage(chatId, messageId, `✅ *Lançamento Salvo!*\n${pendingData.name} - R$ ${pendingData.amount}`);
+                  await editTelegramMessage(chatId, messageId, `✅ *Lançamento Salvo!*\n${escapeMarkdown(pendingData.name)} - R$ ${pendingData.amount}`);
                   // Limpar cache
                   globalThis.pendingLancamentos.delete(confirmationId);
               } else {
@@ -159,7 +152,20 @@ export async function POST(req: NextRequest) {
               console.error(e);
               await sendTelegramMessage(chatId, "❌ Erro ao processar confirmação.");
           }
-      } else if (data === "cancel") {
+      } 
+      else if (data.startsWith("del:")) {
+          // LOGICA DELETAR
+          const idToDelete = data.split(":")[1];
+          const result = await deleteTransaction(idToDelete, targetUserIdCallback);
+          
+          if (result.success) {
+             const safeName = result.name ? escapeMarkdown(result.name) : "Item";
+             await editTelegramMessage(chatId, messageId, `🗑️ *Apagado com sucesso:*\n${safeName}`);
+          } else {
+             await sendTelegramMessage(chatId, "❌ Erro ao apagar lançamento.");
+          }
+      }
+      else if (data === "cancel") {
           await editTelegramMessage(chatId, messageId, "❌ Cancelado.");
       }
 
@@ -445,6 +451,54 @@ export async function POST(req: NextRequest) {
           console.error("Erro gastos reais:", error);
           return NextResponse.json({ status: "error" });
       }
+  }
+
+  // >>> COMANDO DESFAZER <<<
+  if (text.toLowerCase() === "/desfazer" || text.toLowerCase() === "desfazer") {
+       const lastItem = await getLastTransaction(targetUserId);
+       
+       if (!lastItem) {
+           await sendTelegramMessage(chatId, "Nenhum lançamento encontrado para desfazer.");
+           return NextResponse.json({ status: "ok" });
+       }
+       
+       const safeName = escapeMarkdown(lastItem.name);
+       const confirmText = `⚠️ *Apagar último lançamento?*\n\n${safeName} - R$ ${Number(lastItem.amount).toFixed(2)}`;
+       
+       const keyboard = {
+          inline_keyboard: [
+              [
+                  { text: "🗑️ Sim, apagar", callback_data: `del:${lastItem.id}` },
+                  { text: "Cancelar", callback_data: `cancel` }
+              ]
+          ]
+       };
+       
+       await sendTelegramMessage(chatId, confirmText, keyboard);
+       return NextResponse.json({ status: "ok" });
+  }
+
+  // >>> COMANDO FATURA <<<
+  if (text.toLowerCase().includes("fatura")) {
+      await sendTelegramMessage(chatId, "💳 Calculando faturas abertas...");
+      const now = new Date();
+      const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      const summaries = await fetchInvoiceSummaries(targetUserId, currentPeriod);
+      
+      if (!summaries.length) {
+          await sendTelegramMessage(chatId, "Nenhuma fatura com gastos neste mês.");
+          return NextResponse.json({ status: "ok" });
+      }
+      
+      const list = summaries.map(f => 
+          `💳 *${escapeMarkdown(f.cartaoName)}*\n` +
+          `Venc: dia ${f.dueDay} | Fecha: dia ${f.closingDay}\n` +
+          `💰 *Total:* R$ ${f.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+      ).join("\n\n");
+      
+      await sendTelegramMessage(chatId, `🧾 *Faturas do Mês (${currentPeriod}):*\n\n${list}`);
+      return NextResponse.json({ status: "ok" });
   }
 
   // 3. Processar com Gemini
