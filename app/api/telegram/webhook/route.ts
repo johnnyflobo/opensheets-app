@@ -3,7 +3,7 @@ import { GeminiParser, ParsedLancamento } from "@/lib/telegram/gemini-parser";
 import { createLancamentoInternal } from "@/app/(dashboard)/lancamentos/actions";
 import { db } from "@/lib/db";
 import { lancamentos, user } from "@/db/schema";
-import { eq, and, sql, gte, lte } from "drizzle-orm";
+import { eq, and, sql, gte, lte, desc } from "drizzle-orm";
 import { fetchDashboardCardMetrics } from "@/lib/dashboard/metrics";
 import { fetchTopExpenses } from "@/lib/dashboard/expenses/top-expenses";
 import { fetchExpensesByCategory } from "@/lib/dashboard/categories/expenses-by-category";
@@ -201,6 +201,23 @@ export async function POST(req: NextRequest) {
 
   const targetUserId = dbUser[0].id;
 
+  // >>> COMANDO AJUDA <<<
+  if (text.toLowerCase() === "/ajuda" || text.toLowerCase() === "/help" || text.toLowerCase() === "ajuda") {
+      await sendTelegramMessage(chatId, 
+          `🤖 *Comandos Disponíveis:*\n\n` +
+          `💰 */saldo* - Resumo do mês (Receitas x Despesas).\n` +
+          `🗓️ */semana* - Gastos detalhados desta semana.\n` +
+          `💳 */fatura* - Valor parcial das faturas abertas.\n` +
+          `🛍️ */real* - Gastos por data de compra (competência).\n` +
+          `🏆 */top* - Maiores gastos do mês.\n` +
+          `📊 */categorias* - Gastos divididos por categoria.\n` +
+          `🆕 */ultimos* - Últimos lançamentos registrados.\n` +
+          `↩️ */desfazer* - Apaga o último lançamento feito.\n\n` +
+          `💡 *Dica:* Você pode digitar "real mercado" para filtrar!`
+      );
+      return NextResponse.json({ status: "ok" });
+  }
+
   // >>> COMANDO DE SALDO (Bypass IA) <<<
   if (text.toLowerCase().includes("saldo") || text.toLowerCase().includes("resumo")) {
       await sendTelegramMessage(chatId, "📅 Calculando balanço do mês...");
@@ -257,7 +274,10 @@ export async function POST(req: NextRequest) {
            // Nota: Não usamos fetchDashboardCardMetrics aqui pois ele é focado em Mês.
            // Vamos fazer uma query direta, mas mantendo coerência com filtros básicos.
            const gastosSemana = await db.select({
-              total: sql<number>`sum(${lancamentos.amount})`
+              name: lancamentos.name,
+              amount: lancamentos.amount,
+              purchaseDate: lancamentos.purchaseDate,
+              paymentMethod: lancamentos.paymentMethod
            })
            .from(lancamentos)
            .where(
@@ -267,17 +287,34 @@ export async function POST(req: NextRequest) {
                   eq(lancamentos.transactionType, "Despesa"),
                   eq(lancamentos.userId, targetUserId)
               )
-           );
+           )
+           .orderBy(desc(lancamentos.purchaseDate)); // Ordenar mais recentes primeiro
 
-           const totalSemana = Number(gastosSemana[0]?.total || 0);
+           const totalSemana = gastosSemana.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
 
            const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
            const inicioStr = firstDayOfWeek.toLocaleDateString('pt-BR', options);
            const fimStr = lastDayOfWeek.toLocaleDateString('pt-BR', options);
 
+           const list = gastosSemana.map((t: any) => {
+               const dateObj = new Date(t.purchaseDate);
+               const day = dateObj.getDate().toString().padStart(2, '0');
+               const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+               const safeName = escapeMarkdown(t.name);
+               
+               let icon = "";
+               if (t.paymentMethod === "Cartão de crédito") icon = "💳";
+               else if (t.paymentMethod === "Pix" || t.paymentMethod === "Cartão de débito") icon = "✅";
+               else icon = "💵"; // Dinheiro e outros
+               
+               return `• ${day}/${month} ${icon} ${safeName} - R$ ${Number(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+           }).join("\n");
+
            await sendTelegramMessage(chatId, 
             `🗓️ *Gastos da Semana (${inicioStr} - ${fimStr}):*\n\n` +
-            `📉 R$ ${totalSemana.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            `${list}\n` +
+            `---------------------------\n` +
+            `📉 *Total:* R$ ${totalSemana.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
            );
            return NextResponse.json({ status: "ok" });
       } catch (error) {
@@ -491,7 +528,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ status: "ok" });
       }
       
-      const list = summaries.map(f => 
+      const list = summaries.map((f: any) => 
           `💳 *${escapeMarkdown(f.cartaoName)}*\n` +
           `Venc: dia ${f.dueDay} | Fecha: dia ${f.closingDay}\n` +
           `💰 *Total:* R$ ${f.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
