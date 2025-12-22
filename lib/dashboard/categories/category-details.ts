@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { mapLancamentosData } from "@/lib/lancamentos/page-helpers";
 import { PAGADOR_ROLE_ADMIN } from "@/lib/pagadores/constants";
 import { getPreviousPeriod } from "@/lib/utils/period";
-import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
 
 type MappedLancamentos = ReturnType<typeof mapLancamentosData>;
 
@@ -56,6 +56,15 @@ export async function fetchCategoryDetails(
   }
 
   const previousPeriod = getPreviousPeriod(period);
+
+  const [year, month] = period.split("-").map(Number);
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0);
+
+  const [prevYear, prevMonth] = previousPeriod.split("-").map(Number);
+  const prevStartDate = new Date(prevYear, prevMonth - 1, 1);
+  const prevEndDate = new Date(prevYear, prevMonth, 0);
+
   const transactionType = category.type === "receita" ? "Receita" : "Despesa";
 
   const sanitizedNote = or(
@@ -68,7 +77,8 @@ export async function fetchCategoryDetails(
       eq(lancamentos.userId, userId),
       eq(lancamentos.categoriaId, categoryId),
       eq(lancamentos.transactionType, transactionType),
-      eq(lancamentos.period, period),
+      gte(lancamentos.purchaseDate, startDate),
+      lte(lancamentos.purchaseDate, endDate),
       sanitizedNote
     ),
     with: {
@@ -104,7 +114,8 @@ export async function fetchCategoryDetails(
         eq(lancamentos.transactionType, transactionType),
         eq(pagadores.role, PAGADOR_ROLE_ADMIN),
         sanitizedNote,
-        eq(lancamentos.period, previousPeriod)
+        gte(lancamentos.purchaseDate, prevStartDate),
+        lte(lancamentos.purchaseDate, prevEndDate)
       )
     );
 

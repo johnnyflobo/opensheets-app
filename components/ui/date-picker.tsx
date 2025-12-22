@@ -20,7 +20,7 @@ function formatDate(date: Date | undefined): string {
 
   return date.toLocaleDateString("pt-BR", {
     day: "2-digit",
-    month: "long",
+    month: "2-digit",
     year: "numeric",
   });
 }
@@ -42,23 +42,36 @@ function dateToYYYYMMDD(date: Date | undefined): string {
   return `${year}-${month}-${day}`;
 }
 
-function parseYYYYMMDD(dateString: string): Date | undefined {
+function parseDateInput(dateString: string): Date | undefined {
   if (!dateString) {
     return undefined;
   }
 
-  // Parse YYYY-MM-DD format as local date
-  // IMPORTANT: new Date("2025-11-25") treats the date as UTC midnight,
-  // which in Brazil (UTC-3) becomes 2025-11-26 03:00 local time!
-  const ymdMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (ymdMatch) {
-    const [, year, month, day] = ymdMatch;
+  // Parse YYYY-MM-DD format (ISO)
+  const isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
     const date = new Date(Number(year), Number(month) - 1, Number(day));
     return isValidDate(date) ? date : undefined;
   }
 
-  // For other formats, return undefined instead of using native parser
-  // to avoid timezone issues
+  // Parse DD/MM/YYYY format (BR)
+  const brMatch = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (brMatch) {
+    const [, day, month, year] = brMatch;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return isValidDate(date) ? date : undefined;
+  }
+
+  // Parse DD/MM format (Current Year)
+  const shortMatch = dateString.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (shortMatch) {
+    const [, day, month] = shortMatch;
+    const currentYear = new Date().getFullYear();
+    const date = new Date(currentYear, Number(month) - 1, Number(day));
+    return isValidDate(date) ? date : undefined;
+  }
+
   return undefined;
 }
 
@@ -83,18 +96,18 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState<Date | undefined>(() =>
-    parseYYYYMMDD(value)
+    parseDateInput(value)
   );
   const [month, setMonth] = React.useState<Date | undefined>(() =>
-    parseYYYYMMDD(value)
+    parseDateInput(value)
   );
   const [displayValue, setDisplayValue] = React.useState(() =>
-    formatDate(parseYYYYMMDD(value))
+    formatDate(parseDateInput(value))
   );
 
   // Sincronizar quando value externo mudar
   React.useEffect(() => {
-    const newDate = parseYYYYMMDD(value);
+    const newDate = parseDateInput(value);
     setDate(newDate);
     setMonth(newDate);
     setDisplayValue(formatDate(newDate));
@@ -104,7 +117,7 @@ export function DatePicker({
     const inputValue = e.target.value;
     setDisplayValue(inputValue);
 
-    const parsedDate = parseYYYYMMDD(inputValue);
+    const parsedDate = parseDateInput(inputValue);
     if (isValidDate(parsedDate)) {
       setDate(parsedDate);
       setMonth(parsedDate);
@@ -157,10 +170,12 @@ export function DatePicker({
           alignOffset={-8}
           sideOffset={10}
         >
-          <Calendar
+            <Calendar
             mode="single"
             selected={date}
             captionLayout="dropdown"
+            fromYear={1900}
+            toYear={new Date().getFullYear() + 3}
             month={month}
             onMonthChange={setMonth}
             onSelect={handleCalendarSelect}
@@ -180,6 +195,7 @@ export function DatePicker({
                     "Set",
                     "Out",
                     "Nov",
+                    "Dez",
                     "Dez",
                   ][n],
               },

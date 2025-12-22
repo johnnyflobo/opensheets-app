@@ -5,7 +5,7 @@ import {
   type Orcamento,
 } from "@/db/schema";
 import { db } from "@/lib/db";
-import { and, asc, eq, inArray, sum } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 const toNumber = (value: string | number | null | undefined) => {
   if (typeof value === "number") return value;
@@ -64,22 +64,35 @@ export async function fetchBudgetsForUser(
   ]);
 
   const categoryIds = budgetRows
-    .map((budget: Orcamento) => budget.categoriaId)
+    .map((budget: any) => budget.categoriaId)
     .filter((id: string | null): id is string => Boolean(id));
 
   let totalsByCategory = new Map<string, number>();
 
   if (categoryIds.length > 0) {
+    const [year, month] = selectedPeriod.split("-").map(Number);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+
     const totals = await db
       .select({
         categoriaId: lancamentos.categoriaId,
-        totalAmount: sum(lancamentos.amount).as("totalAmount"),
+        totalAmount: sql<string>`sum(
+          case
+            when ${lancamentos.condition} = 'Parcelado' and ${lancamentos.currentInstallment} = 1
+            then ${lancamentos.amount} * ${lancamentos.installmentCount}
+            when ${lancamentos.condition} = 'Parcelado' and ${lancamentos.currentInstallment} > 1
+            then 0
+            else ${lancamentos.amount}
+          end
+        )`.as("totalAmount"),
       })
       .from(lancamentos)
       .where(
         and(
           eq(lancamentos.userId, userId),
-          eq(lancamentos.period, selectedPeriod),
+          gte(lancamentos.purchaseDate, startDate),
+          lte(lancamentos.purchaseDate, endDate),
           eq(lancamentos.transactionType, "Despesa"),
           inArray(lancamentos.categoriaId, categoryIds)
         )
@@ -95,7 +108,7 @@ export async function fetchBudgetsForUser(
   }
 
   const budgets = budgetRows
-    .map((budget: Orcamento) => ({
+    .map((budget: any) => ({
       id: budget.id,
       amount: toNumber(budget.amount),
       spent: totalsByCategory.get(budget.categoriaId ?? "") ?? 0,
@@ -109,13 +122,13 @@ export async function fetchBudgetsForUser(
           }
         : null,
     }))
-    .sort((a, b) =>
+    .sort((a: any, b: any) =>
       (a.category?.name ?? "").localeCompare(b.category?.name ?? "", "pt-BR", {
         sensitivity: "base",
       })
     );
 
-  const categoriesOptions = categoryRows.map((category) => ({
+  const categoriesOptions = categoryRows.map((category: any) => ({
     id: category.id,
     name: category.name,
     icon: category.icon,

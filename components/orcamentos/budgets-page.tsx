@@ -1,14 +1,22 @@
 "use client";
 
-import { deleteBudgetAction } from "@/app/(dashboard)/orcamentos/actions";
+import {
+  deleteBudgetAction,
+  duplicatePreviousMonthBudgetsAction,
+} from "@/app/(dashboard)/orcamentos/actions";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
-import { RiAddCircleLine, RiFundsLine } from "@remixicon/react";
+import { 
+  RiAddCircleLine, 
+  RiFileCopyLine, 
+  RiFundsLine 
+} from "@remixicon/react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Card } from "../ui/card";
 import { BudgetCard } from "./budget-card";
+import { BudgetDetailsDialog } from "./budget-details-dialog";
 import { BudgetDialog } from "./budget-dialog";
 import type { Budget, BudgetCategory } from "./types";
 
@@ -27,8 +35,15 @@ export function BudgetsPage({
 }: BudgetsPageProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
+
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedDetailsBudget, setSelectedDetailsBudget] = useState<Budget | null>(null);
+
   const [removeOpen, setRemoveOpen] = useState(false);
   const [budgetToRemove, setBudgetToRemove] = useState<Budget | null>(null);
+
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   const hasBudgets = budgets.length > 0;
 
@@ -36,6 +51,31 @@ export function BudgetsPage({
     setSelectedBudget(budget);
     setEditOpen(true);
   }, []);
+
+  const handleDetails = useCallback((budget: Budget) => {
+    setSelectedDetailsBudget(budget);
+    setDetailsOpen(true);
+  }, []);
+
+  const handleDuplicateConfirm = useCallback(async () => {
+    setIsDuplicating(true);
+    try {
+      const result = await duplicatePreviousMonthBudgetsAction({
+        period: selectedPeriod,
+      });
+
+      if (result.success) {
+        toast.success(result.message);
+        setDuplicateOpen(false);
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error("Erro ao duplicar orçamentos.");
+    } finally {
+      setIsDuplicating(false);
+    }
+  }, [selectedPeriod]);
 
   const handleEditOpenChange = useCallback((open: boolean) => {
     setEditOpen(open);
@@ -86,7 +126,8 @@ export function BudgetsPage({
   return (
     <>
       <div className="flex w-full flex-col gap-6">
-        <div className="flex justify-start">
+        {/* ... existing header */}
+        <div className="flex justify-start gap-4">
           <BudgetDialog
             mode="create"
             categories={categories}
@@ -98,6 +139,14 @@ export function BudgetsPage({
               </Button>
             }
           />
+          <Button
+            variant="outline"
+            disabled={categories.length === 0}
+            onClick={() => setDuplicateOpen(true)}
+          >
+            <RiFileCopyLine className="size-4" />
+            Duplicar Mês Anterior
+          </Button>
         </div>
 
         {hasBudgets ? (
@@ -109,11 +158,13 @@ export function BudgetsPage({
                 periodLabel={periodLabel}
                 onEdit={handleEdit}
                 onRemove={handleRemoveRequest}
+                onDetails={handleDetails}
               />
             ))}
           </div>
         ) : (
-          <Card className="flex min-h-[50vh] w-full items-center justify-center py-12">
+           // ... empty state
+           <Card className="flex min-h-[50vh] w-full items-center justify-center py-12">
             <EmptyState
               media={<RiFundsLine className="size-6 text-primary" />}
               title="Nenhum orçamento cadastrado"
@@ -132,7 +183,14 @@ export function BudgetsPage({
         onOpenChange={handleEditOpenChange}
       />
 
-      <ConfirmActionDialog
+      <BudgetDetailsDialog 
+        open={detailsOpen} 
+        onOpenChange={setDetailsOpen} 
+        budget={selectedDetailsBudget} 
+      />
+
+      {/* ... confirm dialog */}
+       <ConfirmActionDialog
         open={removeOpen && !!budgetToRemove}
         onOpenChange={handleRemoveOpenChange}
         title={removeTitle}
@@ -141,6 +199,16 @@ export function BudgetsPage({
         pendingLabel="Removendo..."
         confirmVariant="destructive"
         onConfirm={handleRemoveConfirm}
+      />
+
+      <ConfirmActionDialog
+        open={duplicateOpen}
+        onOpenChange={setDuplicateOpen}
+        title="Duplicar orçamentos do mês anterior?"
+        description="Isso copiará os limites definidos no mês anterior para as categorias que ainda não possuem orçamento neste mês."
+        confirmLabel="Duplicar orçamentos"
+        pendingLabel="Duplicando..."
+        onConfirm={handleDuplicateConfirm}
       />
     </>
   );

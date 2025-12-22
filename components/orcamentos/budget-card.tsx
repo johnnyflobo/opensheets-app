@@ -14,6 +14,7 @@ interface BudgetCardProps {
   periodLabel: string;
   onEdit: (budget: Budget) => void;
   onRemove: (budget: Budget) => void;
+  onDetails: (budget: Budget) => void;
 }
 
 const buildUsagePercent = (spent: number, limit: number) => {
@@ -27,11 +28,14 @@ const buildUsagePercent = (spent: number, limit: number) => {
 const formatCategoryName = (budget: Budget) =>
   budget.category?.name ?? "Categoria removida";
 
+// ... existing helpers
+
 export function BudgetCard({
   budget,
   periodLabel,
   onEdit,
   onRemove,
+  onDetails,
 }: BudgetCardProps) {
   const { amount: limit, spent } = budget;
   const exceeded = spent > limit && limit >= 0;
@@ -40,8 +44,11 @@ export function BudgetCard({
 
   return (
     <Card className="flex h-full flex-col">
-      <CardContent className="flex h-full flex-col gap-4">
-        <div className="flex items-start gap-3">
+      <CardContent className="flex h-full flex-col gap-4 pt-6">
+        <div 
+          className="flex items-start gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={() => onDetails(budget)}
+        >
           <span className="flex size-10 shrink-0 items-center justify-center text-primary">
             <CategoryIcon
               name={budget.category?.icon ?? undefined}
@@ -49,7 +56,7 @@ export function BudgetCard({
             />
           </span>
           <div className="space-y-1">
-            <h3 className="text-base font-semibold leading-tight">
+            <h3 className="text-base font-semibold leading-tight underline decoration-dashed underline-offset-4 decoration-muted-foreground/50">
               {formatCategoryName(budget)}
             </h3>
             <p className="text-xs text-muted-foreground">
@@ -59,6 +66,7 @@ export function BudgetCard({
         </div>
 
         <div className="flex flex-1 flex-col gap-2">
+          {/* ... existing progress bar content */}
           <div className="flex items-baseline justify-between text-sm">
             <span className="text-muted-foreground">Gasto até agora</span>
             <MoneyValues
@@ -89,7 +97,7 @@ export function BudgetCard({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex flex-wrap gap-3 px-5 text-sm">
+      <CardFooter className="flex flex-wrap gap-3 px-5 text-sm pb-6">
         <button
           type="button"
           onClick={() => onEdit(budget)}

@@ -1,10 +1,13 @@
+import { AccountsAnalysisWidget } from "@/components/dashboard/accounts-analysis-widget";
 import { BoletosWidget } from "@/components/dashboard/boletos-widget";
+import { CategoriesAnalysisWidget } from "@/components/dashboard/categories-analysis-widget";
 import { ExpensesByCategoryWidget } from "@/components/dashboard/expenses-by-category-widget";
 import { IncomeByCategoryWidget } from "@/components/dashboard/income-by-category-widget";
 import { IncomeExpenseBalanceWidget } from "@/components/dashboard/income-expense-balance-widget";
 import { InstallmentExpensesWidget } from "@/components/dashboard/installment-expenses-widget";
 import { InvoicesWidget } from "@/components/dashboard/invoices-widget";
 import { MyAccountsWidget } from "@/components/dashboard/my-accounts-widget";
+import { PaymentAnalysisWidget } from "@/components/dashboard/payment-analysis-widget";
 import { PaymentConditionsWidget } from "@/components/dashboard/payment-conditions-widget";
 import { PaymentMethodsWidget } from "@/components/dashboard/payment-methods-widget";
 import { PaymentStatusWidget } from "@/components/dashboard/payment-status-widget";
@@ -13,6 +16,8 @@ import { RecentTransactionsWidget } from "@/components/dashboard/recent-transact
 import { RecurringExpensesWidget } from "@/components/dashboard/recurring-expenses-widget";
 import { TopEstablishmentsWidget } from "@/components/dashboard/top-establishments-widget";
 import { TopExpensesWidget } from "@/components/dashboard/top-expenses-widget";
+import { TopAnalysisWidget } from "@/components/dashboard/top-analysis-widget";
+import { TransactionsAnalysisWidget } from "@/components/dashboard/transactions-analysis-widget";
 import {
   RiArrowUpDoubleLine,
   RiBarChartBoxLine,
@@ -32,7 +37,7 @@ import {
 } from "@remixicon/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { DashboardData } from "./fetch-dashboard-data";
+import type { DashboardData } from "../fetch-dashboard-data";
 
 export type WidgetConfig = {
   id: string;
@@ -45,43 +50,30 @@ export type WidgetConfig = {
 
 export const widgetsConfig: WidgetConfig[] = [
   {
-    id: "my-accounts",
-    title: "Minhas Contas",
-    subtitle: "Saldo consolidado disponível",
+    id: "accounts-analysis",
+    title: "Saldo e Faturas",
+    subtitle: "Contas e Cartões de Crédito",
     icon: <RiBarChartBoxLine className="size-4" />,
     component: ({ data, period }) => (
-      <MyAccountsWidget
+      <AccountsAnalysisWidget
         accounts={data.accountsSnapshot.accounts}
         totalBalance={data.accountsSnapshot.totalBalance}
+        invoices={data.invoicesSnapshot.invoices}
         period={period}
       />
     ),
   },
   {
-    id: "invoices",
-    title: "Faturas",
-    subtitle: "Resumo das faturas do período",
-    icon: <RiBillLine className="size-4" />,
-    component: ({ data }) => (
-      <InvoicesWidget invoices={data.invoicesSnapshot.invoices} />
-    ),
-  },
-  {
-    id: "boletos",
-    title: "Boletos",
-    subtitle: "Controle de boletos do período",
-    icon: <RiBarcodeLine className="size-4" />,
-    component: ({ data }) => (
-      <BoletosWidget boletos={data.boletosSnapshot.boletos} />
-    ),
-  },
-  {
-    id: "payment-status",
-    title: "Status de Pagamento",
-    subtitle: "Valores Confirmados E Pendentes",
+    id: "payment-analysis",
+    title: "Análise de Pagamentos",
+    subtitle: "Status, condições e formas de pagamento",
     icon: <RiWallet3Line className="size-4" />,
     component: ({ data }) => (
-      <PaymentStatusWidget data={data.paymentStatusData} />
+      <PaymentAnalysisWidget
+        statusData={data.paymentStatusData}
+        conditionsData={data.paymentConditionsData}
+        methodsData={data.paymentMethodsData}
+      />
     ),
   },
   {
@@ -94,109 +86,40 @@ export const widgetsConfig: WidgetConfig[] = [
     ),
   },
   {
-    id: "recent-transactions",
-    title: "Lançamentos Recentes",
-    subtitle: "Últimas 5 despesas registradas",
+    id: "transactions-analysis",
+    title: "Análise de Lançamentos",
+    subtitle: "Recentes, Recorrentes e Parcelados",
     icon: <RiExchangeLine className="size-4" />,
     component: ({ data }) => (
-      <RecentTransactionsWidget data={data.recentTransactionsData} />
+      <TransactionsAnalysisWidget
+        recentData={data.recentTransactionsData}
+        recurringData={data.recurringExpensesData}
+        installmentData={data.installmentExpensesData}
+      />
     ),
   },
   {
-    id: "payment-conditions",
-    title: "Condições de Pagamentos",
-    subtitle: "Análise das condições",
-    icon: <RiSlideshowLine className="size-4" />,
-    component: ({ data }) => (
-      <PaymentConditionsWidget data={data.paymentConditionsData} />
-    ),
-  },
-  {
-    id: "payment-methods",
-    title: "Formas de Pagamento",
-    subtitle: "Distribuição das despesas",
-    icon: <RiMoneyDollarCircleLine className="size-4" />,
-    component: ({ data }) => (
-      <PaymentMethodsWidget data={data.paymentMethodsData} />
-    ),
-  },
-  {
-    id: "recurring-expenses",
-    title: "Lançamentos Recorrentes",
-    subtitle: "Despesas recorrentes do período",
-    icon: <RiRefreshLine className="size-4" />,
-    component: ({ data }) => (
-      <RecurringExpensesWidget data={data.recurringExpensesData} />
-    ),
-  },
-  {
-    id: "installment-expenses",
-    title: "Lançamentos Parcelados",
-    subtitle: "Acompanhe as parcelas abertas",
-    icon: <RiNumbersLine className="size-4" />,
-    component: ({ data }) => (
-      <InstallmentExpensesWidget data={data.installmentExpensesData} />
-    ),
-    action: (
-      <Link
-        href="/dashboard/analise-parcelas"
-        className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-      >
-        <RiSecurePaymentLine className="inline mr-1 size-4" />
-        Análise
-      </Link>
-    ),
-  },
-  {
-    id: "top-expenses",
-    title: "Maiores Gastos do Mês",
-    subtitle: "Top 10 Despesas",
+    id: "top-analysis",
+    title: "Análise de Destaques",
+    subtitle: "Maiores gastos e estabelecimentos",
     icon: <RiArrowUpDoubleLine className="size-4" />,
     component: ({ data }) => (
-      <TopExpensesWidget
+      <TopAnalysisWidget
         allExpenses={data.topExpensesAll}
         cardOnlyExpenses={data.topExpensesCardOnly}
+        establishmentsData={data.topEstablishmentsData}
       />
     ),
   },
   {
-    id: "top-establishments",
-    title: "Top Estabelecimentos",
-    subtitle: "Frequência de gastos no período",
-    icon: <RiStore2Line className="size-4" />,
-    component: ({ data }) => (
-      <TopEstablishmentsWidget data={data.topEstablishmentsData} />
-    ),
-  },
-  {
-    id: "purchases-by-category",
-    title: "Lançamentos por Categorias",
-    subtitle: "Distribuição de lançamentos por categoria",
-    icon: <RiStore3Line className="size-4" />,
-    component: ({ data }) => (
-      <PurchasesByCategoryWidget data={data.purchasesByCategoryData} />
-    ),
-  },
-  {
-    id: "income-by-category",
-    title: "Categorias por Receitas",
-    subtitle: "Distribuição de receitas por categoria",
+    id: "categories-analysis",
+    title: "Análise de Categorias",
+    subtitle: "Visão detalhada por categorias",
     icon: <RiPieChartLine className="size-4" />,
     component: ({ data, period }) => (
-      <IncomeByCategoryWidget
-        data={data.incomeByCategoryData}
-        period={period}
-      />
-    ),
-  },
-  {
-    id: "expenses-by-category",
-    title: "Categorias por Despesas",
-    subtitle: "Distribuição de despesas por categoria",
-    icon: <RiPieChartLine className="size-4" />,
-    component: ({ data, period }) => (
-      <ExpensesByCategoryWidget
-        data={data.expensesByCategoryData}
+      <CategoriesAnalysisWidget
+        expensesData={data.expensesByCategoryData}
+        purchasesData={data.purchasesByCategoryData}
         period={period}
       />
     ),

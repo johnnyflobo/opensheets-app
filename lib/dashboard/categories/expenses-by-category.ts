@@ -1,10 +1,10 @@
 import { categorias, lancamentos, orcamentos, pagadores } from "@/db/schema";
 import { ACCOUNT_AUTO_INVOICE_NOTE_PREFIX } from "@/lib/accounts/constants";
+import { toNumber } from "@/lib/dashboard/common";
 import { db } from "@/lib/db";
 import { PAGADOR_ROLE_ADMIN } from "@/lib/pagadores/constants";
 import { getPreviousPeriod } from "@/lib/utils/period";
-import { and, eq, isNull, or, sql } from "drizzle-orm";
-import { toNumber } from "@/lib/dashboard/common";
+import { and, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
 
 export type CategoryExpenseItem = {
   categoryId: string;
@@ -47,6 +47,14 @@ export async function fetchExpensesByCategory(
 ): Promise<ExpensesByCategoryData> {
   const previousPeriod = getPreviousPeriod(period);
 
+  const [year, month] = period.split("-").map(Number);
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0);
+
+  const [prevYear, prevMonth] = previousPeriod.split("-").map(Number);
+  const prevStartDate = new Date(prevYear, prevMonth - 1, 1);
+  const prevEndDate = new Date(prevYear, prevMonth, 0);
+
   // Busca despesas do período atual agrupadas por categoria
   const currentPeriodRows = await db
     .select({
@@ -70,7 +78,8 @@ export async function fetchExpensesByCategory(
     .where(
       and(
         eq(lancamentos.userId, userId),
-        eq(lancamentos.period, period),
+        gte(lancamentos.purchaseDate, startDate),
+        lte(lancamentos.purchaseDate, endDate),
         eq(lancamentos.transactionType, "Despesa"),
         eq(pagadores.role, PAGADOR_ROLE_ADMIN),
         eq(categorias.type, "despesa"),
@@ -80,7 +89,12 @@ export async function fetchExpensesByCategory(
         )
       )
     )
-    .groupBy(categorias.id, categorias.name, categorias.icon, orcamentos.amount);
+    .groupBy(
+      categorias.id,
+      categorias.name,
+      categorias.icon,
+      orcamentos.amount
+    );
 
   // Busca despesas do período anterior agrupadas por categoria
   const previousPeriodRows = await db
@@ -94,7 +108,8 @@ export async function fetchExpensesByCategory(
     .where(
       and(
         eq(lancamentos.userId, userId),
-        eq(lancamentos.period, previousPeriod),
+        gte(lancamentos.purchaseDate, prevStartDate),
+        lte(lancamentos.purchaseDate, prevEndDate),
         eq(lancamentos.transactionType, "Despesa"),
         eq(pagadores.role, PAGADOR_ROLE_ADMIN),
         eq(categorias.type, "despesa"),
