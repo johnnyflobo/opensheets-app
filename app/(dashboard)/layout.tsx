@@ -8,6 +8,8 @@ import { fetchPagadoresWithAccess } from "@/lib/pagadores/access";
 import { PAGADOR_ROLE_ADMIN } from "@/lib/pagadores/constants";
 import { parsePeriodParam } from "@/lib/utils/period";
 
+import { cookies } from "next/headers";
+
 export default async function DashboardLayout({
   children,
   searchParams,
@@ -40,9 +42,12 @@ export default async function DashboardLayout({
     currentPeriod
   );
 
+  const cookieStore = await cookies();
+  const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+
   return (
     <PrivacyProvider>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar
           user={{ ...session.user, image: session.user.image ?? null }}
           pagadorAvatarUrl={adminPagador?.avatarUrl ?? null}

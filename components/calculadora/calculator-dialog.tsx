@@ -88,14 +88,14 @@ export function CalculatorDialogButton({
   // Estilo padrão para outros usos
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+      <DialogTrigger asChild aria-controls="calculator-modal">
         <Button variant={variant} size={size} className={cn(className)}>
           {children ?? (
             <RiCalculatorFill className="h-4 w-4 text-muted-foreground" />
           )}
         </Button>
       </DialogTrigger>
-      <DialogContent className="p-4 sm:max-w-sm">
+      <DialogContent id="calculator-modal" className="p-4 sm:max-w-sm">
         <DialogHeader className="space-y-2">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <RiCalculatorLine className="h-5 w-5" />

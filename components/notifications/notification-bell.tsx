@@ -69,7 +69,7 @@ export function NotificationBell({
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild aria-controls="notifications-menu">
             <button
               type="button"
               aria-label="Notificações"
@@ -107,6 +107,7 @@ export function NotificationBell({
         </TooltipContent>
       </Tooltip>
       <DropdownMenuContent
+        id="notifications-menu"
         align="end"
         sideOffset={12}
         className="w-80 max-h-[500px] overflow-hidden rounded-lg border border-border/60 bg-popover/95 p-0 shadow-lg backdrop-blur-lg supports-backdrop-filter:backdrop-blur-md"

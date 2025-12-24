@@ -110,6 +110,9 @@ export function NavMain({ sections }: { sections: NavSection[] }) {
             <SidebarMenu>
               {section.items.map((item) => {
                 const itemIsActive = isLinkActive(item.url);
+                // Create a stable ID for hydration consistency
+                const stableId = `sidebar-mn-${item.title.toLowerCase().replace(/\s+/g, '-')}`;
+
                 return (
                   <Collapsible key={item.title} asChild>
                     <SidebarMenuItem>
@@ -126,13 +129,13 @@ export function NavMain({ sections }: { sections: NavSection[] }) {
                       </SidebarMenuButton>
                       {item.items?.length ? (
                         <>
-                          <CollapsibleTrigger asChild>
+                          <CollapsibleTrigger asChild aria-controls={stableId}>
                             <SidebarMenuAction className="data-[state=open]:rotate-90 text-foreground px-2 trasition-transform duration-200">
                               <RiArrowRightSLine />
                               <span className="sr-only">Toggle</span>
                             </SidebarMenuAction>
                           </CollapsibleTrigger>
-                          <CollapsibleContent>
+                          <CollapsibleContent id={stableId}>
                             <SidebarMenuSub>
                               {item.items?.map((subItem) => {
                                 const subItemIsActive = isLinkActive(

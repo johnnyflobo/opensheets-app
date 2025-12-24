@@ -2,6 +2,7 @@ import { getUser } from "@/lib/auth/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "./types";
+export type { ActionResult };
 import { errorResult } from "./types";
 
 /**
@@ -9,16 +10,16 @@ import { errorResult } from "./types";
  * @param error - The error to handle
  * @returns ActionResult with error message
  */
-export function handleActionError(error: unknown): ActionResult {
+export function handleActionError<T = void>(error: unknown): ActionResult<T> {
   if (error instanceof z.ZodError) {
-    return errorResult(error.issues[0]?.message ?? "Dados inválidos.");
+    return errorResult(error.issues[0]?.message ?? "Dados inválidos.") as ActionResult<T>;
   }
 
   if (error instanceof Error) {
-    return errorResult(error.message);
+    return errorResult(error.message) as ActionResult<T>;
   }
 
-  return errorResult("Erro inesperado.");
+  return errorResult("Erro inesperado.") as ActionResult<T>;
 }
 
 /**

@@ -1,13 +1,13 @@
 import * as schema from "@/db/schema";
-import { drizzle, type PgDatabase } from "drizzle-orm/node-postgres";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 const globalForDb = globalThis as unknown as {
-  db?: PgDatabase<typeof schema>;
+  db?: NodePgDatabase<typeof schema>;
   pool?: Pool;
 };
 
-let _db: PgDatabase<typeof schema> | undefined;
+let _db: NodePgDatabase<typeof schema> | undefined;
 let _pool: Pool | undefined;
 
 function getDb() {
@@ -27,9 +27,12 @@ function getDb() {
 
   const poolConfig: ConstructorParameters<typeof Pool>[0] = {
     connectionString: DATABASE_URL,
-    ssl: {
-      rejectUnauthorized: false, // Permite conexões com certificados auto-assinados (comum em Neon/Supabase/etc)
-    },
+    ssl:
+      process.env.DB_PROVIDER === "local"
+        ? false
+        : {
+            rejectUnauthorized: false, // Permite conexões com certificados auto-assinados (comum em Neon/Supabase/etc)
+          },
   };
 
   console.log("[DB] Initializing pool with config:", {
@@ -48,7 +51,7 @@ function getDb() {
   return _db;
 }
 
-export const db = new Proxy({} as PgDatabase<typeof schema>, {
+export const db = new Proxy({} as NodePgDatabase<typeof schema>, {
   get(_, prop) {
     return Reflect.get(getDb(), prop);
   },
