@@ -1,4 +1,4 @@
-"use client";
+import { getInvoiceStatus } from "@/lib/utils/invoice-status";
 import {
   createLancamentoAction,
   updateLancamentoAction,
@@ -124,10 +124,31 @@ export function LancamentoDialog({
     return groupAndSortCategorias(filtered);
   }, [categoriaOptions, formState.transactionType]);
 
-  const monthOptions = useMemo(
-    () => createMonthOptions(formState.period),
-    [formState.period]
-  );
+  const monthOptions = useMemo(() => {
+    const options = createMonthOptions(formState.period);
+
+    if (formState.cartaoId) {
+      const selectedCard = cartaoOptions.find(
+        (c) => c.value === formState.cartaoId
+      );
+
+      if (selectedCard?.closingDay && selectedCard?.dueDay) {
+        return options.map((option) => {
+          const { label: statusLabel } = getInvoiceStatus(
+            option.value,
+            selectedCard.closingDay!,
+            selectedCard.dueDay!
+          );
+          return {
+            ...option,
+            label: `${option.label} ${statusLabel}`,
+          };
+        });
+      }
+    }
+
+    return options;
+  }, [formState.period, formState.cartaoId, cartaoOptions]);
 
   const handleFieldChange = useCallback(
     <Key extends keyof FormState>(key: Key, value: FormState[Key]) => {
@@ -202,10 +223,21 @@ export function LancamentoDialog({
         purchaseDate: formState.purchaseDate,
         period: formState.period,
         name: formState.name.trim(),
-        transactionType: formState.transactionType,
+        transactionType: formState.transactionType as
+          | "Despesa"
+          | "Receita"
+          | "Transferência",
         amount: sanitizedAmount,
-        condition: formState.condition,
-        paymentMethod: formState.paymentMethod,
+        condition: formState.condition as
+          | "Parcelado"
+          | "Recorrente"
+          | "À vista",
+        paymentMethod: formState.paymentMethod as
+          | "Boleto"
+          | "Cartão de crédito"
+          | "Cartão de débito"
+          | "Pix"
+          | "Dinheiro",
         pagadorId: formState.pagadorId,
         secondaryPagadorId: formState.isSplit
           ? formState.secondaryPagadorId
@@ -214,7 +246,7 @@ export function LancamentoDialog({
         contaId: formState.contaId,
         cartaoId: formState.cartaoId,
         categoriaId: formState.categoriaId,
-        note: formState.note.trim() || undefined,
+        note: formState.note.trim() || null,
         isSettled:
           formState.paymentMethod === "Cartão de crédito"
             ? null

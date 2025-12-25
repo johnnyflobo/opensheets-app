@@ -57,10 +57,13 @@ type ContaSluggedOption = BaseSluggedOption & {
   logo: string | null;
 };
 
+
 type CartaoSluggedOption = BaseSluggedOption & {
   kind: "cartao";
   logo: string | null;
   isMain: boolean;
+  closingDay: number;
+  dueDay: number;
 };
 
 export type SluggedFilters = {
@@ -155,7 +158,9 @@ export const toOption = (
   slug?: string | null,
   avatarUrl?: string | null,
   logo?: string | null,
-  icon?: string | null
+  icon?: string | null,
+  closingDay?: number | null,
+  dueDay?: number | null
 ): SelectOption => ({
   value,
   label: normalizeLabel(label),
@@ -165,6 +170,8 @@ export const toOption = (
   avatarUrl: avatarUrl ?? null,
   logo: logo ?? null,
   icon: icon ?? null,
+  closingDay: closingDay ?? null,
+  dueDay: dueDay ?? null,
 });
 
 export const fetchLancamentoFilterSources = async (userId: string) => {
@@ -247,6 +254,8 @@ export const buildSluggedFilters = ({
       kind: "cartao" as const,
       logo: cartao.logo ?? null,
       isMain: cartao.isMain,
+      closingDay: Number(cartao.closingDay),
+      dueDay: Number(cartao.dueDay),
     };
   });
 
@@ -479,8 +488,8 @@ export const buildOptionSets = ({
     : cartaoFiltersRaw;
 
   const cartaoOptions = sortByLabel(
-    cartaoOptionsSource.map(({ id, label, slug, logo }) =>
-      toOption(id, label, undefined, undefined, slug, undefined, logo)
+    cartaoOptionsSource.map(({ id, label, slug, logo, closingDay, dueDay }) =>
+      toOption(id, label, undefined, undefined, slug, undefined, logo, undefined, closingDay, dueDay)
     )
   );
 
@@ -520,3 +529,4 @@ export const buildOptionSets = ({
     contaCartaoFilterOptions,
   };
 };
+

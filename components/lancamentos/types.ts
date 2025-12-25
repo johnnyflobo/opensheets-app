@@ -43,6 +43,8 @@ export type SelectOption = {
   avatarUrl?: string | null;
   logo?: string | null;
   icon?: string | null;
+  closingDay?: number | null;
+  dueDay?: number | null;
 };
 
 export type LancamentoFilterOption = {

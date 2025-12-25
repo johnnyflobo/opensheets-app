@@ -65,6 +65,25 @@ async function assertAccountOwnership(userId: string, contaId: string) {
   }
 }
 
+async function handleMainCardLogic(userId: string, isMain: boolean) {
+  if (isMain) {
+    await db
+      .update(cartoes)
+      .set({ isMain: false })
+      .where(and(eq(cartoes.userId, userId), eq(cartoes.isMain, true)));
+  }
+}
+
+async function assertLogoIsValid(logoPath: string) {
+  const validLogos = await loadLogoOptions();
+  // loadLogoOptions returns string[]
+  const isValid = validLogos.includes(logoPath);
+
+  if (!isValid) {
+    throw new Error("Logo inválido selected.");
+  }
+}
+
 export async function createCardAction(
   input: CardCreateInput
 ): Promise<ActionResult> {
