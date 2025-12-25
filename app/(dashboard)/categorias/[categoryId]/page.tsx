@@ -4,6 +4,7 @@ import { LancamentosPage } from "@/components/lancamentos/page/lancamentos-page"
 import MonthPicker from "@/components/month-picker/month-picker";
 import { fetchCategoryDetails } from "@/lib/dashboard/categories/category-details";
 import { getUserId } from "@/lib/auth/server";
+import { getEffectiveUserId } from "@/lib/pagadores/access";
 import {
   buildOptionSets,
   buildSluggedFilters,
@@ -48,7 +49,7 @@ const formatPeriodLabel = (period: string) => {
 
 export default async function Page({ params, searchParams }: PageProps) {
   const { categoryId } = await params;
-  const userId = await getUserId();
+  const userId = await getEffectiveUserId(await getUserId());
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   const periodoParam = getSingleParam(resolvedSearchParams, "periodo");

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { lancamentos, type Conta } from "@/db/schema";
 import { db } from "@/lib/db";
 import { getUserId } from "@/lib/auth/server";
+import { getEffectiveUserId } from "@/lib/pagadores/access";
 import {
   buildLancamentoWhere,
   buildOptionSets,
@@ -34,7 +35,7 @@ type PageProps = {
 
 export default async function Page({ params, searchParams }: PageProps) {
   const { cartaoId } = await params;
-  const userId = await getUserId();
+  const userId = await getEffectiveUserId(await getUserId());
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   const periodoParamRaw = getSingleParam(resolvedSearchParams, "periodo");

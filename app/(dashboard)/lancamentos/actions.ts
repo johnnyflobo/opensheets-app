@@ -20,6 +20,7 @@ import {
   buildEntriesByPagador,
   sendPagadorAutoEmails,
 } from "@/lib/pagadores/notifications";
+import { getEffectiveUserId } from "@/lib/pagadores/access";
 import { noteSchema, uuidSchema } from "@/lib/schemas/common";
 import { formatDecimalForDbRequired } from "@/lib/utils/currency";
 import {
@@ -579,7 +580,8 @@ export async function createLancamentoAction(
 ): Promise<ActionResult> {
   try {
     const user = await getUser();
-    return await createLancamentoInternal(input, user.id);
+    const targetUserId = await getEffectiveUserId(user.id);
+    return await createLancamentoInternal(input, targetUserId);
   } catch (error) {
     return handleActionError(error);
   }
@@ -590,6 +592,7 @@ export async function updateLancamentoAction(
 ): Promise<ActionResult> {
   try {
     const user = await getUser();
+    const targetUserId = await getEffectiveUserId(user.id);
     const data = updateSchema.parse(input);
 
     const existing = await db.query.lancamentos.findFirst({
@@ -602,7 +605,7 @@ export async function updateLancamentoAction(
         contaId: true,
         categoriaId: true,
       },
-      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, user.id)),
+      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, targetUserId)),
       with: {
         categoria: {
           columns: {
@@ -666,7 +669,7 @@ export async function updateLancamentoAction(
         boletoPaymentDate: boletoPaymentDateValue,
         period,
       })
-      .where(and(eq(lancamentos.id, data.id), eq(lancamentos.userId, user.id)));
+      .where(and(eq(lancamentos.id, data.id), eq(lancamentos.userId, targetUserId)));
 
     if (isInitialBalanceLancamento(existing) && existing?.contaId) {
       const updatedInitialBalance = formatDecimalForDbRequired(
@@ -676,7 +679,7 @@ export async function updateLancamentoAction(
         .update(contas)
         .set({ initialBalance: updatedInitialBalance })
         .where(
-          and(eq(contas.id, existing.contaId), eq(contas.userId, user.id))
+          and(eq(contas.id, existing.contaId), eq(contas.userId, targetUserId))
         );
     }
 
@@ -693,6 +696,7 @@ export async function deleteLancamentoAction(
 ): Promise<ActionResult> {
   try {
     const user = await getUser();
+    const targetUserId = await getEffectiveUserId(user.id);
     const data = deleteSchema.parse(input);
 
     const existing = await db.query.lancamentos.findFirst({
@@ -709,7 +713,7 @@ export async function deleteLancamentoAction(
         note: true,
         categoriaId: true,
       },
-      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, user.id)),
+      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, targetUserId)),
       with: {
         categoria: {
           columns: {
@@ -738,7 +742,7 @@ export async function deleteLancamentoAction(
 
     await db
       .delete(lancamentos)
-      .where(and(eq(lancamentos.id, data.id), eq(lancamentos.userId, user.id)));
+      .where(and(eq(lancamentos.id, data.id), eq(lancamentos.userId, targetUserId)));
 
     if (existing.pagadorId) {
       const notificationEntries = buildEntriesByPagador([
@@ -775,11 +779,12 @@ export async function toggleLancamentoSettlementAction(
 ): Promise<ActionResult> {
   try {
     const user = await getUser();
+    const targetUserId = await getEffectiveUserId(user.id);
     const data = toggleSettlementSchema.parse(input);
 
     const existing = await db.query.lancamentos.findFirst({
       columns: { id: true, paymentMethod: true },
-      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, user.id)),
+      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, targetUserId)),
     });
 
     if (!existing) {
@@ -806,7 +811,7 @@ export async function toggleLancamentoSettlementAction(
         isSettled: data.value,
         boletoPaymentDate,
       })
-      .where(and(eq(lancamentos.id, data.id), eq(lancamentos.userId, user.id)));
+      .where(and(eq(lancamentos.id, data.id), eq(lancamentos.userId, targetUserId)));
 
     revalidate();
 
@@ -835,6 +840,7 @@ export async function deleteLancamentoBulkAction(
 ): Promise<ActionResult> {
   try {
     const user = await getUser();
+    const targetUserId = await getEffectiveUserId(user.id);
     const data = deleteBulkSchema.parse(input);
 
     const existing = await db.query.lancamentos.findFirst({
@@ -845,7 +851,7 @@ export async function deleteLancamentoBulkAction(
         period: true,
         condition: true,
       },
-      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, user.id)),
+      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, targetUserId)),
     });
 
     if (!existing) {
@@ -863,7 +869,7 @@ export async function deleteLancamentoBulkAction(
       await db
         .delete(lancamentos)
         .where(
-          and(eq(lancamentos.id, data.id), eq(lancamentos.userId, user.id))
+          and(eq(lancamentos.id, data.id), eq(lancamentos.userId, targetUserId))
         );
 
       revalidate();
@@ -876,7 +882,7 @@ export async function deleteLancamentoBulkAction(
         .where(
           and(
             eq(lancamentos.seriesId, existing.seriesId),
-            eq(lancamentos.userId, user.id),
+            eq(lancamentos.userId, targetUserId),
             sql`${lancamentos.period} >= ${existing.period}`
           )
         );
@@ -894,7 +900,7 @@ export async function deleteLancamentoBulkAction(
         .where(
           and(
             eq(lancamentos.seriesId, existing.seriesId),
-            eq(lancamentos.userId, user.id)
+            eq(lancamentos.userId, targetUserId)
           )
         );
 
@@ -954,6 +960,7 @@ export async function updateLancamentoBulkAction(
 ): Promise<ActionResult> {
   try {
     const user = await getUser();
+    const targetUserId = await getEffectiveUserId(user.id);
     const data = updateBulkSchema.parse(input);
 
     const existing = await db.query.lancamentos.findFirst({
@@ -966,7 +973,7 @@ export async function updateLancamentoBulkAction(
         transactionType: true,
         purchaseDate: true,
       },
-      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, user.id)),
+      where: and(eq(lancamentos.id, data.id), eq(lancamentos.userId, targetUserId)),
     });
 
     if (!existing) {
@@ -1064,7 +1071,7 @@ export async function updateLancamentoBulkAction(
             .where(
               and(
                 eq(lancamentos.id, record.id),
-                eq(lancamentos.userId, user.id)
+                eq(lancamentos.userId, targetUserId)
               )
             );
         }
@@ -1091,7 +1098,7 @@ export async function updateLancamentoBulkAction(
         },
         where: and(
           eq(lancamentos.seriesId, existing.seriesId),
-          eq(lancamentos.userId, user.id),
+          eq(lancamentos.userId, targetUserId),
           sql`${lancamentos.period} >= ${existing.period}`
         ),
         orderBy: asc(lancamentos.purchaseDate),
@@ -1119,7 +1126,7 @@ export async function updateLancamentoBulkAction(
         },
         where: and(
           eq(lancamentos.seriesId, existing.seriesId),
-          eq(lancamentos.userId, user.id)
+          eq(lancamentos.userId, targetUserId)
         ),
         orderBy: asc(lancamentos.purchaseDate),
       });
@@ -1190,6 +1197,7 @@ export async function createMassLancamentosAction(
 ): Promise<ActionResult> {
   try {
     const user = await getUser();
+    const targetUserId = await getEffectiveUserId(user.id);
     const data = massAddSchema.parse(input);
 
     // Default values for non-fixed fields
@@ -1256,7 +1264,7 @@ export async function createMassLancamentosAction(
         isDivided: false,
         dueDate: null,
         boletoPaymentDate: null,
-        userId: user.id,
+        userId: targetUserId,
         seriesId: null,
       };
 
@@ -1323,6 +1331,7 @@ export async function deleteMultipleLancamentosAction(
 ): Promise<ActionResult> {
   try {
     const user = await getUser();
+    const targetUserId = await getEffectiveUserId(user.id);
     const data = deleteMultipleSchema.parse(input);
 
     // Fetch all lancamentos to be deleted
@@ -1341,7 +1350,7 @@ export async function deleteMultipleLancamentosAction(
       },
       where: and(
         inArray(lancamentos.id, data.ids),
-        eq(lancamentos.userId, user.id)
+        eq(lancamentos.userId, targetUserId)
       ),
     });
 
@@ -1353,7 +1362,7 @@ export async function deleteMultipleLancamentosAction(
     await db
       .delete(lancamentos)
       .where(
-        and(inArray(lancamentos.id, data.ids), eq(lancamentos.userId, user.id))
+        and(inArray(lancamentos.id, data.ids), eq(lancamentos.userId, targetUserId))
       );
 
     // Send notifications
@@ -1405,6 +1414,7 @@ export async function deleteMultipleLancamentosAction(
 export async function getRecentEstablishmentsAction(): Promise<string[]> {
   try {
     const user = await getUser();
+    const targetUserId = await getEffectiveUserId(user.id);
 
     // Calculate date 3 months ago
     const threeMonthsAgo = new Date();
@@ -1416,7 +1426,7 @@ export async function getRecentEstablishmentsAction(): Promise<string[]> {
       .from(lancamentos)
       .where(
         and(
-          eq(lancamentos.userId, user.id),
+          eq(lancamentos.userId, targetUserId),
           gte(lancamentos.purchaseDate, threeMonthsAgo)
         )
       )

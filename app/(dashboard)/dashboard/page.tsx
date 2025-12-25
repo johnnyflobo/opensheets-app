@@ -6,6 +6,8 @@ import { getUser } from "@/lib/auth/server";
 import { fetchDashboardData } from "@/lib/dashboard/fetch-dashboard-data";
 import { parsePeriodParam } from "@/lib/utils/period";
 
+import { getEffectiveUserId } from "@/lib/pagadores/access";
+
 type PageSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 type PageProps = {
@@ -23,11 +25,13 @@ const getSingleParam = (
 
 export default async function Page({ searchParams }: PageProps) {
   const user = await getUser();
+  const effectiveUserId = await getEffectiveUserId(user.id);
+
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const periodoParam = getSingleParam(resolvedSearchParams, "periodo");
   const { period: selectedPeriod } = parsePeriodParam(periodoParam);
 
-  const data = await fetchDashboardData(user.id, selectedPeriod);
+  const data = await fetchDashboardData(effectiveUserId, selectedPeriod);
 
   return (
     <main className="flex flex-col gap-4 px-6">

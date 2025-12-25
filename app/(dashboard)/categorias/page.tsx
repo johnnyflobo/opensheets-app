@@ -2,8 +2,10 @@ import { CategoriesPage } from "@/components/categorias/categories-page";
 import { getUserId } from "@/lib/auth/server";
 import { fetchCategoriesForUser } from "./data";
 
+import { getEffectiveUserId } from "@/lib/pagadores/access";
+
 export default async function Page() {
-  const userId = await getUserId();
+  const userId = await getEffectiveUserId(await getUserId());
   const categories = await fetchCategoriesForUser(userId);
 
   return (

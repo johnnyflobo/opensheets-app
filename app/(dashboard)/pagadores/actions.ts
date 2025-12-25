@@ -8,6 +8,7 @@ import { getUser } from "@/lib/auth/server";
 import {
   DEFAULT_PAGADOR_AVATAR,
   PAGADOR_ROLE_ADMIN,
+  PAGADOR_ROLE_MEMBER,
   PAGADOR_ROLE_TERCEIRO,
   PAGADOR_STATUS_OPTIONS,
 } from "@/lib/pagadores/constants";
@@ -19,11 +20,12 @@ import { revalidatePath } from "next/cache";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
-const statusEnum = z.enum(PAGADOR_STATUS_OPTIONS as [string, ...string[]], {
-  errorMap: () => ({
+const statusEnum = z.enum(
+  [...PAGADOR_STATUS_OPTIONS] as [string, ...string[]],
+  {
     message: "Selecione um status válido.",
-  }),
-});
+  }
+);
 
 const baseSchema = z.object({
   name: z
@@ -216,17 +218,72 @@ export async function joinPagadorByShareCodeAction(
     });
 
     if (existingShare) {
+      // Se já existe o compartilhamento, verificamos se é um ADMIN (Família)
+      // e se o perfil de "Pagador" correspondente existe. Se não, criamos.
+      if (pagadorRow.role === PAGADOR_ROLE_ADMIN) {
+        const existingMemberPayer = await db.query.pagadores.findFirst({
+          where: and(
+            eq(pagadores.userId, pagadorRow.userId),
+            eq(pagadores.email, user.email)
+          ),
+        });
+
+        if (!existingMemberPayer) {
+           await db.insert(pagadores).values({
+            name: user.name ?? "Membro da Família",
+            email: user.email,
+            status: "Ativo",
+            note: "Membro da família adicionado automaticamente (Sincronizado).",
+            avatarUrl: DEFAULT_PAGADOR_AVATAR,
+            isAutoSend: false,
+            role: PAGADOR_ROLE_MEMBER,
+            shareCode: generateShareCode(),
+            userId: pagadorRow.userId,
+          });
+          
+          revalidate();
+          return { success: true, message: "Perfil de família sincronizado com sucesso." };
+        }
+      }
+
       return {
         success: false,
         error: "Você já possui acesso a este pagador.",
       };
     }
 
-    await db.insert(pagadorShares).values({
-      pagadorId: pagadorRow.id,
-      sharedWithUserId: user.id,
-      permission: "read",
-      createdByUserId: pagadorRow.userId,
+    await db.transaction(async (tx) => {
+      await tx.insert(pagadorShares).values({
+        pagadorId: pagadorRow.id,
+        sharedWithUserId: user.id,
+        permission: "read",
+        createdByUserId: pagadorRow.userId,
+      });
+
+      // Se for um compartilhamento de ADMIN (Família), criar automaticamente
+      // um pagador para o novo membro na conta do Owner, se não existir.
+      if (pagadorRow.role === PAGADOR_ROLE_ADMIN) {
+        const existingMemberPayer = await tx.query.pagadores.findFirst({
+          where: and(
+            eq(pagadores.userId, pagadorRow.userId),
+            eq(pagadores.email, user.email)
+          ),
+        });
+
+        if (!existingMemberPayer) {
+          await tx.insert(pagadores).values({
+            name: user.name ?? "Membro da Família",
+            email: user.email,
+            status: "Ativo",
+            note: "Membro da família adicionado automaticamente.",
+            avatarUrl: DEFAULT_PAGADOR_AVATAR,
+            isAutoSend: false,
+            role: PAGADOR_ROLE_MEMBER,
+            shareCode: generateShareCode(),
+            userId: pagadorRow.userId,
+          });
+        }
+      }
     });
 
     revalidate();
@@ -261,10 +318,18 @@ export async function deletePagadorShareAction(
     });
 
     // Permitir que o owner OU o próprio usuário compartilhado remova o share
-    if (!existing || (existing.pagador.userId !== user.id && existing.sharedWithUserId !== user.id)) {
-      return {
+    // existing is inferred as possibly array? Force consistent check.
+    if (!existing || Array.isArray(existing)) {
+       return {
         success: false,
         error: "Compartilhamento não encontrado.",
+      };
+    }
+
+    if ((existing.pagador as { userId: string }).userId !== user.id && existing.sharedWithUserId !== user.id) {
+      return {
+        success: false,
+        error: "Compartilhamento não encontrado.", // Generic error for permission denied
       };
     }
 
@@ -317,7 +382,7 @@ export async function regeneratePagadorShareCodeAction(
         if (
           error instanceof Error &&
           "constraint" in error &&
-          // @ts-expect-error constraint is present in postgres errors
+          // Postgres error constraint check
           error.constraint === "pagadores_share_code_key"
         ) {
           attempts += 1;

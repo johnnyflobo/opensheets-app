@@ -2,8 +2,10 @@ import { AccountsPage } from "@/components/contas/accounts-page";
 import { getUserId } from "@/lib/auth/server";
 import { fetchAccountsForUser } from "./data";
 
+import { getEffectiveUserId } from "@/lib/pagadores/access";
+
 export default async function Page() {
-  const userId = await getUserId();
+  const userId = await getEffectiveUserId(await getUserId());
   const now = new Date();
 
   const { accounts, logoOptions } = await fetchAccountsForUser(userId);

@@ -56,6 +56,11 @@ export function PagadorCard({ pagador, onEdit, onRemove }: PagadorCardProps) {
           {pagador.isAutoSend ? (
             <RiMailSendLine className="size-4 text-primary" aria-hidden />
           ) : null}
+          {pagador.role === "membro" ? (
+             <span className="text-xs font-medium text-emerald-600 px-1.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-200">
+              Família
+            </span>
+          ) : null}
         </div>
 
         {/* Email */}

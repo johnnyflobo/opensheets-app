@@ -30,7 +30,7 @@ import {
   type SluggedFilters,
 } from "@/lib/lancamentos/page-helpers";
 import { parsePeriodParam } from "@/lib/utils/period";
-import { getPagadorAccess } from "@/lib/pagadores/access";
+import { getPagadorAccess, getEffectiveUserId } from "@/lib/pagadores/access";
 import {
   fetchPagadorBoletoStats,
   fetchPagadorCardUsage,
@@ -38,6 +38,7 @@ import {
   fetchPagadorMonthlyBreakdown,
 } from "@/lib/pagadores/details";
 import { notFound } from "next/navigation";
+import { getRecentEstablishmentsAction } from "@/app/(dashboard)/lancamentos/actions";
 import { fetchPagadorLancamentos, fetchPagadorShares } from "./data";
 
 type PageSearchParams = Promise<ResolvedSearchParams>;
@@ -71,7 +72,7 @@ type OptionSet = ReturnType<typeof buildOptionSets>;
 
 export default async function Page({ params, searchParams }: PageProps) {
   const { pagadorId } = await params;
-  const userId = await getUserId();
+  const userId = await getEffectiveUserId(await getUserId());
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   const access = await getPagadorAccess(userId, pagadorId);
@@ -134,6 +135,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     cardUsage,
     boletoStats,
     shareRows,
+    estabelecimentos,
   ] = await Promise.all([
     fetchPagadorLancamentos(filters),
     fetchPagadorMonthlyBreakdown({
@@ -157,6 +159,7 @@ export default async function Page({ params, searchParams }: PageProps) {
       period: selectedPeriod,
     }),
     sharesPromise,
+    getRecentEstablishmentsAction(),
   ]);
 
   const mappedLancamentos = mapLancamentosData(lancamentoRows);
@@ -177,7 +180,13 @@ export default async function Page({ params, searchParams }: PageProps) {
   } else {
     effectiveSluggedFilters = {
       pagadorFiltersRaw: [
-        { id: pagador.id, label: pagador.name, slug: pagador.id, role: pagador.role },
+        {
+          id: pagador.id,
+          label: pagador.name,
+          slug: pagador.id,
+          role: pagador.role,
+          avatarUrl: pagador.avatarUrl,
+        },
       ],
       categoriaFiltersRaw: [],
       contaFiltersRaw: [],
@@ -290,6 +299,7 @@ export default async function Page({ params, searchParams }: PageProps) {
               contaCartaoFilterOptions={optionSets.contaCartaoFilterOptions}
               selectedPeriod={selectedPeriod}
               allowCreate={canEdit}
+              estabelecimentos={estabelecimentos}
             />
           </section>
         </TabsContent>
@@ -311,6 +321,7 @@ function buildReadOnlyOptionSets(
       value: pagador.id,
       label: pagadorLabel,
       slug: pagador.id,
+      avatarUrl: pagador.avatarUrl,
     },
   ];
 
@@ -324,6 +335,7 @@ function buildReadOnlyOptionSets(
         value: item.contaId,
         label: normalizeOptionLabel(item.contaName, "Conta sem nome"),
         slug: item.contaId,
+        logo: item.contaLogo,
       });
     }
     if (item.cartaoId && !cartaoOptionsMap.has(item.cartaoId)) {
@@ -331,6 +343,7 @@ function buildReadOnlyOptionSets(
         value: item.cartaoId,
         label: normalizeOptionLabel(item.cartaoName, "Cartão sem nome"),
         slug: item.cartaoId,
+        logo: item.cartaoLogo,
       });
     }
     if (item.categoriaId && !categoriaOptionsMap.has(item.categoriaId)) {
@@ -338,6 +351,7 @@ function buildReadOnlyOptionSets(
         value: item.categoriaId,
         label: normalizeOptionLabel(item.categoriaName, "Categoria"),
         slug: item.categoriaId,
+        icon: undefined, // Adding undefined as we cannot infer icon from item easily without joining, assumed handled by page
       });
     }
   });
@@ -347,13 +361,14 @@ function buildReadOnlyOptionSets(
   const categoriaOptions = Array.from(categoriaOptionsMap.values());
 
   const pagadorFilterOptions: LancamentoFilterOption[] = [
-    { slug: pagador.id, label: pagadorLabel },
+    { slug: pagador.id, label: pagadorLabel, avatarUrl: pagador.avatarUrl },
   ];
 
   const categoriaFilterOptions: LancamentoFilterOption[] = categoriaOptions.map(
     (option) => ({
       slug: option.value,
       label: option.label,
+      icon: option.icon,
     })
   );
 

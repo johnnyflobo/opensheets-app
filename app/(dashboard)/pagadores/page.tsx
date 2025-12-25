@@ -4,9 +4,10 @@ import {
   PAGADOR_STATUS_OPTIONS,
   DEFAULT_PAGADOR_AVATAR,
   PAGADOR_ROLE_ADMIN,
+  PAGADOR_ROLE_MEMBER,
 } from "@/lib/pagadores/constants";
 import { getUserId } from "@/lib/auth/server";
-import { fetchPagadoresWithAccess } from "@/lib/pagadores/access";
+import { getEffectiveUserId, fetchPagadoresWithAccess } from "@/lib/pagadores/access";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
@@ -42,7 +43,7 @@ const resolveStatus = (status: string | null): PagadorStatus => {
 };
 
 export default async function Page() {
-  const userId = await getUserId();
+  const userId = await getEffectiveUserId(await getUserId());
 
   const [pagadorRows, avatarOptions] = await Promise.all([
     fetchPagadoresWithAccess(userId),
@@ -67,15 +68,21 @@ export default async function Page() {
       shareCode: pagador.canEdit ? pagador.shareCode ?? null : null,
     }))
     .sort((a, b) => {
-      // Admin sempre primeiro
-      if (a.role === PAGADOR_ROLE_ADMIN && b.role !== PAGADOR_ROLE_ADMIN) {
-        return -1;
-      }
-      if (a.role !== PAGADOR_ROLE_ADMIN && b.role === PAGADOR_ROLE_ADMIN) {
+      // Helper para pontuar roles: Admin (3) > Member (2) > Outros (1)
+      const getScore = (role: string | null) => {
+        if (role === PAGADOR_ROLE_ADMIN) return 3;
+        if (role === PAGADOR_ROLE_MEMBER) return 2;
         return 1;
+      };
+
+      const scoreA = getScore(a.role);
+      const scoreB = getScore(b.role);
+
+      if (scoreA !== scoreB) {
+        return scoreB - scoreA; // Maior score primeiro
       }
-      // Se ambos são admin ou ambos não são, mantém ordem original
-      return 0;
+      
+      return a.name.localeCompare(b.name);
     });
 
   return (

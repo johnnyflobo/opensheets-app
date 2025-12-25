@@ -6,6 +6,7 @@ import {
 } from "@/app/(dashboard)/pagadores/actions";
 import { PagadorCard } from "@/components/pagadores/pagador-card";
 import { PagadorDialog } from "@/components/pagadores/pagador-dialog";
+import { InviteFamilyDialog } from "@/components/pagadores/invite-family-dialog";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { Button } from "@/components/ui/button";
 import { PAGADOR_ROLE_ADMIN } from "@/lib/pagadores/constants";
@@ -138,6 +139,13 @@ export function PagadoresPage({
               </Button>
             }
           />
+          {orderedPagadores.find((p) => p.role === PAGADOR_ROLE_ADMIN) && (
+            <InviteFamilyDialog
+              pagador={
+                orderedPagadores.find((p) => p.role === PAGADOR_ROLE_ADMIN)!
+              }
+            />
+          )}
           <form
             onSubmit={handleJoinByCode}
             className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"

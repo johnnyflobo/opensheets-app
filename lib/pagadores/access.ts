@@ -6,7 +6,11 @@ import {
 import { db } from "@/lib/db";
 import { and, eq } from "drizzle-orm";
 
-export type PagadorWithAccess = typeof pagadores.$inferSelect & {
+export type PagadorWithAccess = Omit<
+  typeof pagadores.$inferSelect,
+  "shareCode"
+> & {
+  shareCode: string | null;
   canEdit: boolean;
   sharedByName: string | null;
   sharedByEmail: string | null;
@@ -111,4 +115,27 @@ export async function userHasPagadorAccess(
 ) {
   const access = await getPagadorAccess(userId, pagadorId);
   return Boolean(access);
+}
+
+export async function getEffectiveUserId(currentUserId: string): Promise<string> {
+  // Check if user has access to any ADMIN pagador from another user
+  const adminShare = await db
+    .select({
+      ownerId: pagadores.userId,
+    })
+    .from(pagadorShares)
+    .innerJoin(pagadores, eq(pagadorShares.pagadorId, pagadores.id))
+    .where(
+      and(
+        eq(pagadorShares.sharedWithUserId, currentUserId),
+        eq(pagadores.role, "admin") // Using string directly to avoid circular dependency if constant is not amenable
+      )
+    )
+    .limit(1);
+
+  if (adminShare.length > 0) {
+    return adminShare[0].ownerId;
+  }
+
+  return currentUserId;
 }

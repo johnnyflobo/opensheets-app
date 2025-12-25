@@ -1,6 +1,7 @@
 import MonthPicker from "@/components/month-picker/month-picker";
 import { LancamentosPage } from "@/components/lancamentos/page/lancamentos-page";
 import { getUserId } from "@/lib/auth/server";
+import { getEffectiveUserId } from "@/lib/pagadores/access";
 import {
   buildLancamentoWhere,
   buildOptionSets,
@@ -23,7 +24,7 @@ type PageProps = {
 };
 
 export default async function Page({ searchParams }: PageProps) {
-  const userId = await getUserId();
+  const userId = await getEffectiveUserId(await getUserId());
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   const periodoParamRaw = getSingleParam(resolvedSearchParams, "periodo");

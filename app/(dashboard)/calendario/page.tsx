@@ -1,5 +1,6 @@
 import MonthPicker from "@/components/month-picker/month-picker";
 import { getUserId } from "@/lib/auth/server";
+import { getEffectiveUserId } from "@/lib/pagadores/access";
 import {
   getSingleParam,
   type ResolvedSearchParams,
@@ -17,7 +18,7 @@ type PageProps = {
 };
 
 export default async function Page({ searchParams }: PageProps) {
-  const userId = await getUserId();
+  const userId = await getEffectiveUserId(await getUserId());
   const resolvedParams = searchParams ? await searchParams : undefined;
 
   const periodoParam = getSingleParam(resolvedParams, "periodo");
