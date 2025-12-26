@@ -30,7 +30,8 @@ import { toast } from "sonner";
 interface TransferDialogProps {
   trigger?: React.ReactNode;
   accounts: AccountData[];
-  fromAccountId: string;
+  fromAccountId?: string;
+  currentPeriod: string;
   currentPeriod: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -54,33 +55,46 @@ export function TransferDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Form state
+  const [fromAccountIdState, setFromAccountId] = useState(fromAccountId || "");
   const [toAccountId, setToAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(formatDateForDb(new Date()));
   const [period, setPeriod] = useState(currentPeriod);
+  
+  // Update state when prop changes
+  const [prevPropId, setPrevPropId] = useState(fromAccountId);
+  if (fromAccountId !== prevPropId) {
+    setFromAccountId(fromAccountId || "");
+    setPrevPropId(fromAccountId);
+  }
 
   // Available destination accounts (exclude source account)
   const availableAccounts = useMemo(
-    () => accounts.filter((account) => account.id !== fromAccountId),
-    [accounts, fromAccountId]
+    () => accounts.filter((account) => account.id !== fromAccountIdState),
+    [accounts, fromAccountIdState]
   );
 
   // Source account info
   const fromAccount = useMemo(
-    () => accounts.find((account) => account.id === fromAccountId),
-    [accounts, fromAccountId]
+    () => accounts.find((account) => account.id === fromAccountIdState),
+    [accounts, fromAccountIdState]
   );
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage(null);
 
+    if (!fromAccountIdState) {
+      setErrorMessage("Selecione a conta de origem.");
+      return;
+    }
+
     if (!toAccountId) {
       setErrorMessage("Selecione a conta de destino.");
       return;
     }
 
-    if (toAccountId === fromAccountId) {
+    if (toAccountId === fromAccountIdState) {
       setErrorMessage("Selecione uma conta de destino diferente da origem.");
       return;
     }
@@ -92,7 +106,7 @@ export function TransferDialog({
 
     startTransition(async () => {
       const result = await transferBetweenAccountsAction({
-        fromAccountId,
+        fromAccountId: fromAccountIdState,
         toAccountId,
         amount,
         date: new Date(date),
@@ -164,12 +178,27 @@ export function TransferDialog({
 
             <div className="flex flex-col gap-2 sm:col-span-2">
               <Label htmlFor="from-account">Conta de origem</Label>
-              <Input
-                id="from-account"
-                value={fromAccount?.name || ""}
-                disabled
-                className="bg-muted"
-              />
+              {fromAccountId ? (
+                 <Input
+                 id="from-account"
+                 value={fromAccount?.name || ""}
+                 disabled
+                 className="bg-muted"
+               />
+              ) : (
+                <Select value={fromAccountIdState} onValueChange={setFromAccountId}>
+                  <SelectTrigger id="from-account" className="w-full">
+                    <SelectValue placeholder="Selecione a conta de origem" />
+                  </SelectTrigger>
+                  <SelectContent className="w-full">
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name} - {account.accountType}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="flex flex-col gap-2 sm:col-span-2">

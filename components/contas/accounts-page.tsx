@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { getCurrentPeriod } from "@/lib/utils/period";
 import { RiAddCircleLine, RiBankLine } from "@remixicon/react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card } from "../ui/card";
 import { AccountDialog } from "./account-dialog";
@@ -19,6 +19,7 @@ import type { Account } from "./types";
 interface AccountsPageProps {
   accounts: Account[];
   logoOptions: string[];
+  openTransfer?: boolean;
 }
 
 const resolveLogoSrc = (logo: string | null) => {
@@ -30,15 +31,44 @@ const resolveLogoSrc = (logo: string | null) => {
   return `/logos/${fileName}`;
 };
 
-export function AccountsPage({ accounts, logoOptions }: AccountsPageProps) {
+export function AccountsPage({
+  accounts,
+  logoOptions,
+  openTransfer = false,
+}: AccountsPageProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [editOpen, setEditOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [accountToRemove, setAccountToRemove] = useState<Account | null>(null);
-  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(openTransfer);
   const [transferFromAccount, setTransferFromAccount] =
     useState<Account | null>(null);
+
+  // Sync state with prop
+  useEffect(() => {
+    setTransferOpen(openTransfer);
+  }, [openTransfer]);
+
+  const handleTransferOpenChangeRaw = useCallback(
+    (open: boolean) => {
+      setTransferOpen(open);
+      if (!open) {
+        setTransferFromAccount(null);
+
+        // Clear params when closing
+        const params = new URLSearchParams(searchParams.toString());
+        if (params.has("action")) {
+          params.delete("action");
+          router.replace(`${pathname}?${params.toString()}`);
+        }
+      }
+    },
+    [router, pathname, searchParams]
+  );
 
   const hasAccounts = accounts.length > 0;
 
@@ -192,13 +222,13 @@ export function AccountsPage({ accounts, logoOptions }: AccountsPageProps) {
         onConfirm={handleRemoveConfirm}
       />
 
-      {transferFromAccount && (
+      {transferOpen && (
         <TransferDialog
           accounts={accounts}
-          fromAccountId={transferFromAccount.id}
+          fromAccountId={transferFromAccount?.id}
           currentPeriod={getCurrentPeriod()}
           open={transferOpen}
-          onOpenChange={handleTransferOpenChange}
+          onOpenChange={handleTransferOpenChangeRaw}
         />
       )}
     </>

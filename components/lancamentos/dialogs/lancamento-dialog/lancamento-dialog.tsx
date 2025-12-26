@@ -61,6 +61,7 @@ export function LancamentoDialog({
   defaultCartaoId,
   defaultPaymentMethod,
   defaultPurchaseDate,
+  defaultTransactionType,
   lockCartaoSelection,
   lockPaymentMethod,
   onBulkEditRequest,
@@ -76,6 +77,7 @@ export function LancamentoDialog({
       defaultCartaoId,
       defaultPaymentMethod,
       defaultPurchaseDate,
+      defaultTransactionType,
     })
   );
   const [periodDirty, setPeriodDirty] = useState(false);
@@ -93,6 +95,7 @@ export function LancamentoDialog({
             defaultCartaoId,
             defaultPaymentMethod,
             defaultPurchaseDate,
+            defaultTransactionType,
           }
         )
       );
@@ -107,6 +110,7 @@ export function LancamentoDialog({
     defaultCartaoId,
     defaultPaymentMethod,
     defaultPurchaseDate,
+    defaultTransactionType,
   ]);
 
   const primaryPagador = formState.pagadorId;

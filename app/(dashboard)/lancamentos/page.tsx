@@ -30,6 +30,10 @@ export default async function Page({ searchParams }: PageProps) {
   const periodoParamRaw = getSingleParam(resolvedSearchParams, "periodo");
   const { period: selectedPeriod } = parsePeriodParam(periodoParamRaw);
 
+  const openCreate = getSingleParam(resolvedSearchParams, "new") === "true";
+  const defaultTransactionType = getSingleParam(resolvedSearchParams, "type");
+  const defaultPaymentMethod = getSingleParam(resolvedSearchParams, "method");
+
   const searchFilters = extractLancamentoSearchFilters(resolvedSearchParams);
 
   const filterSources = await fetchLancamentoFilterSources(userId);
@@ -83,6 +87,9 @@ export default async function Page({ searchParams }: PageProps) {
         selectedPeriod={selectedPeriod}
         estabelecimentos={estabelecimentos}
         defaultCartaoId={defaultCartaoId}
+        openCreate={openCreate}
+        defaultTransactionType={defaultTransactionType}
+        defaultPaymentMethod={defaultPaymentMethod}
       />
     </main>
   );

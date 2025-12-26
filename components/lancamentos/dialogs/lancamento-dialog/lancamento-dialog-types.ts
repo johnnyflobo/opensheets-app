@@ -20,6 +20,7 @@ export interface LancamentoDialogProps {
   defaultCartaoId?: string | null;
   defaultPaymentMethod?: string | null;
   defaultPurchaseDate?: string | null;
+  defaultTransactionType?: string | null;
   lockCartaoSelection?: boolean;
   lockPaymentMethod?: boolean;
   onBulkEditRequest?: (data: {

@@ -26,10 +26,10 @@ type Trend = "up" | "down" | "flat";
 const TREND_THRESHOLD = 0.005;
 
 const CARDS = [
+  { label: "Saldo", key: "saldo", icon: RiCurrencyLine },
   { label: "Receitas", key: "receitas", icon: RiArrowUpLine },
   { label: "Despesas", key: "despesas", icon: RiArrowDownLine },
-  { label: "Balanço", key: "balanco", icon: RiIncreaseDecreaseLine },
-  { label: "Previsto", key: "previsto", icon: RiCurrencyLine },
+  { label: "Cartões de crédito", key: "cartoesCredito", icon: RiSubtractLine },
 ] as const;
 
 const TREND_ICONS = {

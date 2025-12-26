@@ -232,7 +232,7 @@ export async function POST(req: NextRequest) {
 
           const receitas = metrics.receitas.current;
           const despesas = metrics.despesas.current; // Já vem absoluto e somado corretamente pela função
-          const saldo = metrics.balanco.current;
+          const saldo = metrics.saldo.current;
           
           const monthName = now.toLocaleDateString('pt-BR', { month: 'long' });
           const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);

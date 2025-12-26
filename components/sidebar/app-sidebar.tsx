@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import * as React from "react";
 import { createSidebarNavData, type PagadorLike } from "./nav-link";
+import { SidebarNewButton } from "./sidebar-new-button";
 
 type AppUser = {
   id: string;
@@ -61,6 +62,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarNewButton />
         <NavMain sections={navigation.navMain} />
         <NavSecondary items={navigation.navSecondary} className="mt-auto" />
       </SidebarContent>

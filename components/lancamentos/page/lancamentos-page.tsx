@@ -9,7 +9,8 @@ import {
   updateLancamentoBulkAction,
 } from "@/app/(dashboard)/lancamentos/actions";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
-import { useCallback, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AnticipateInstallmentsDialog } from "../dialogs/anticipate-installments-dialog/anticipate-installments-dialog";
@@ -43,7 +44,10 @@ interface LancamentosPageProps {
   defaultCartaoId?: string | null;
   defaultPaymentMethod?: string | null;
   lockCartaoSelection?: boolean;
+  lockCartaoSelection?: boolean;
   lockPaymentMethod?: boolean;
+  openCreate?: boolean;
+  defaultTransactionType?: string | null;
 }
 
 export function LancamentosPage({
@@ -64,11 +68,40 @@ export function LancamentosPage({
   defaultPaymentMethod,
   lockCartaoSelection,
   lockPaymentMethod,
+  openCreate = false,
+  defaultTransactionType,
 }: LancamentosPageProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [selectedLancamento, setSelectedLancamento] =
     useState<LancamentoItem | null>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(openCreate);
+
+  // Sync state with prop
+  useEffect(() => {
+    setCreateOpen(openCreate);
+  }, [openCreate]);
+
+  const handleCreateOpenChange = useCallback(
+    (open: boolean) => {
+      setCreateOpen(open);
+
+      if (!open) {
+        // Clear params when closing
+        const params = new URLSearchParams(searchParams.toString());
+        if (params.has("new")) {
+          params.delete("new");
+          params.delete("type");
+          params.delete("method");
+          router.replace(`${pathname}?${params.toString()}`);
+        }
+      }
+    },
+    [router, pathname, searchParams]
+  );
   const [massAddOpen, setMassAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [lancamentoToDelete, setLancamentoToDelete] =
@@ -337,7 +370,7 @@ export function LancamentosPage({
         <LancamentoDialog
           mode="create"
           open={createOpen}
-          onOpenChange={setCreateOpen}
+          onOpenChange={handleCreateOpenChange}
           pagadorOptions={pagadorOptions}
           splitPagadorOptions={splitPagadorOptions}
           defaultPagadorId={defaultPagadorId}
@@ -350,6 +383,7 @@ export function LancamentosPage({
           defaultPaymentMethod={defaultPaymentMethod}
           lockCartaoSelection={lockCartaoSelection}
           lockPaymentMethod={lockPaymentMethod}
+          defaultTransactionType={defaultTransactionType}
         />
       ) : null}
 

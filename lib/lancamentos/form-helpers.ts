@@ -39,6 +39,7 @@ export type LancamentoFormOverrides = {
   defaultCartaoId?: string | null;
   defaultPaymentMethod?: string | null;
   defaultPurchaseDate?: string | null;
+  defaultTransactionType?: string | null;
 };
 
 /**
@@ -79,7 +80,9 @@ export function buildLancamentoInitialState(
         : fallbackPeriod,
     name: lancamento?.name ?? "",
     transactionType:
-      lancamento?.transactionType ?? LANCAMENTO_TRANSACTION_TYPES[0],
+      lancamento?.transactionType ??
+      overrides?.defaultTransactionType ??
+      LANCAMENTO_TRANSACTION_TYPES[0],
     amount:
       typeof lancamento?.amount === "number"
         ? (Math.round(Math.abs(lancamento.amount) * 100) / 100).toFixed(2)
