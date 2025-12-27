@@ -35,12 +35,19 @@ export type CategoryOption = {
   icon: string | null;
 };
 
+export type BudgetsSummaryData = {
+  totalPlanned: number;
+  totalSpent: number;
+  totalBalance: number;
+};
+
 export async function fetchBudgetsForUser(
   userId: string,
   selectedPeriod: string
 ): Promise<{
   budgets: BudgetData[];
   categoriesOptions: CategoryOption[];
+  summary: BudgetsSummaryData;
 }> {
   const [budgetRows, categoryRows] = await Promise.all([
     db.query.orcamentos.findMany({
@@ -134,5 +141,14 @@ export async function fetchBudgetsForUser(
     icon: category.icon,
   }));
 
-  return { budgets, categoriesOptions };
+  const totalPlanned = budgets.reduce((acc, b) => acc + b.amount, 0);
+  const totalSpent = budgets.reduce((acc, b) => acc + b.spent, 0);
+
+  const summary = {
+    totalPlanned,
+    totalSpent,
+    totalBalance: totalPlanned - totalSpent,
+  };
+
+  return { budgets, categoriesOptions, summary };
 }

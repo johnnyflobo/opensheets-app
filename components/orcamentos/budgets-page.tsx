@@ -18,6 +18,7 @@ import { Card } from "../ui/card";
 import { BudgetCard } from "./budget-card";
 import { BudgetDetailsDialog } from "./budget-details-dialog";
 import { BudgetDialog } from "./budget-dialog";
+import { BudgetsSummary } from "./budgets-summary";
 import type { Budget, BudgetCategory } from "./types";
 
 interface BudgetsPageProps {
@@ -25,6 +26,11 @@ interface BudgetsPageProps {
   categories: BudgetCategory[];
   selectedPeriod: string;
   periodLabel: string;
+  summary: {
+    totalPlanned: number;
+    totalSpent: number;
+    totalBalance: number;
+  };
 }
 
 export function BudgetsPage({
@@ -32,6 +38,7 @@ export function BudgetsPage({
   categories,
   selectedPeriod,
   periodLabel,
+  summary,
 }: BudgetsPageProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
@@ -126,6 +133,8 @@ export function BudgetsPage({
   return (
     <>
       <div className="flex w-full flex-col gap-6">
+        <BudgetsSummary summary={summary} />
+
         {/* ... existing header */}
         <div className="flex justify-start gap-4">
           <BudgetDialog

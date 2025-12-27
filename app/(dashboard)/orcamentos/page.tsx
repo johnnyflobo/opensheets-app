@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: PageProps) {
 
   const periodLabel = `${capitalize(rawMonthName)} ${year}`;
 
-  const { budgets, categoriesOptions } = await fetchBudgetsForUser(
+  const { budgets, categoriesOptions, summary } = await fetchBudgetsForUser(
     userId,
     selectedPeriod
   );
@@ -48,6 +48,7 @@ export default async function Page({ searchParams }: PageProps) {
         categories={categoriesOptions}
         selectedPeriod={selectedPeriod}
         periodLabel={periodLabel}
+        summary={summary}
       />
     </main>
   );
