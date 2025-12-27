@@ -26,7 +26,7 @@ import MoneyValues from "../money-values";
 interface CardItemProps {
   name: string;
   brand: string | null;
-  status: string;
+  status: string | null;
   closingDay: string;
   dueDay: string;
   limit: number | null;

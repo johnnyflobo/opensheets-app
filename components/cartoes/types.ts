@@ -2,7 +2,7 @@ export type Card = {
   id: string;
   name: string;
   brand: string | null;
-  status: string;
+  status: string | null;
   closingDay: string;
   dueDay: string;
   note: string | null;

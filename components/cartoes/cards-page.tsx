@@ -11,6 +11,7 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CardDialog } from "./card-dialog";
 import { CardItem } from "./card-item";
+import { CardsSummary } from "./cards-summary";
 import { Card } from "./types";
 
 type AccountOption = {
@@ -23,9 +24,14 @@ interface CardsPageProps {
   cards: Card[];
   accounts: AccountOption[];
   logoOptions: string[];
+  summary: {
+    total: number;
+    parcelado: number;
+    avista: number;
+  };
 }
 
-export function CardsPage({ cards, accounts, logoOptions }: CardsPageProps) {
+export function CardsPage({ cards, accounts, logoOptions, summary }: CardsPageProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -104,6 +110,8 @@ export function CardsPage({ cards, accounts, logoOptions }: CardsPageProps) {
   return (
     <>
       <div className="flex w-full flex-col gap-6">
+        <CardsSummary summary={summary} />
+
         <div className="flex justify-start">
           <CardDialog
             mode="create"
