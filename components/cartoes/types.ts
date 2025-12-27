@@ -13,6 +13,7 @@ export type Card = {
   limitInUse?: number | null;
   limitAvailable?: number | null;
   isMain?: boolean;
+  invoiceTotal?: number;
 };
 
 export type CardFormValues = {

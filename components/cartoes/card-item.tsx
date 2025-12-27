@@ -38,6 +38,7 @@ interface CardItemProps {
   onEdit?: () => void;
   onInvoice?: () => void;
   onRemove?: () => void;
+  invoiceTotal?: number;
 }
 
 const BRAND_ASSETS: Record<string, string> = {
@@ -77,6 +78,7 @@ export function CardItem({
   onEdit,
   onInvoice,
   onRemove,
+  invoiceTotal,
 }: CardItemProps) {
   void _contaName;
 
@@ -158,7 +160,7 @@ export function CardItem({
   );
 
   return (
-    <Card className="flex p-6 h-[300px] w-[440px]">
+    <Card className="flex p-6 h-[340px] w-[440px]">
       <CardHeader className="space-y-2 px-0 pb-0">
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-1 items-center gap-2">
@@ -245,6 +247,15 @@ export function CardItem({
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col gap-5 px-0">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            Fatura Atual
+          </span>
+          <p className="text-2xl font-bold">
+            <MoneyValues amount={Math.abs(invoiceTotal ?? 0)} />
+          </p>
+        </div>
+
         {metrics ? (
           <>
             <div className="grid grid-cols-3 gap-4">

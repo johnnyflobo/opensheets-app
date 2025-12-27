@@ -82,6 +82,7 @@ export async function fetchCardsForUser(
       // Usage for SUMMARY (Filtered by Period if provided)
       db
         .select({
+          cartaoId: lancamentos.cartaoId,
           installmentCount: lancamentos.installmentCount,
           amount: lancamentos.amount,
         })
@@ -112,15 +113,22 @@ export async function fetchCardsForUser(
     usageMap.set(row.cartaoId, Number(row.total ?? 0));
   });
 
-  // Calculate summary
+  // Calculate summary and per-card invoice totals
   let totalCards = 0;
   let totalParcelado = 0;
   let totalAvista = 0;
+  const invoiceMap = new Map<string, number>();
 
   usageSummaryRows.forEach((row) => {
     const amount = Number(row.amount);
     totalCards += amount;
-    // Assuming installmentCount > 1 is parcelado, otherwise avista
+    
+    // Aggregate per card
+    if (row.cartaoId) {
+      const current = invoiceMap.get(row.cartaoId) ?? 0;
+      invoiceMap.set(row.cartaoId, current + amount);
+    }
+    
     if (row.installmentCount && row.installmentCount > 1) {
       totalParcelado += amount;
     } else {
@@ -150,6 +158,7 @@ export async function fetchCardsForUser(
       const inUse = total < 0 ? Math.abs(total) : 0;
       return Math.max(Number(card.limit) - inUse, 0);
     })(),
+    invoiceTotal: invoiceMap.get(card.id) ?? 0,
     contaId: card.contaId,
     contaName: card.conta?.name ?? "Conta não encontrada",
     isMain: card.isMain ?? false,

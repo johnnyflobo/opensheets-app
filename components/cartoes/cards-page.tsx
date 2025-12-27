@@ -145,6 +145,7 @@ export function CardsPage({ cards, accounts, logoOptions, summary }: CardsPagePr
                 onEdit={() => handleEdit(card)}
                 onInvoice={() => handleInvoice(card)}
                 onRemove={() => handleRemoveRequest(card)}
+                invoiceTotal={card.invoiceTotal}
               />
             ))}
           </div>
