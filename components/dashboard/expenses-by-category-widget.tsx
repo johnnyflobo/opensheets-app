@@ -41,7 +41,12 @@ export function ExpensesByCategoryWidget({
 }: ExpensesByCategoryWidgetProps) {
   const periodParam = formatPeriodForUrl(period);
 
-  if (data.categories.length === 0) {
+  // Filtra categorias com valor zero (preservando o filtro para melhor UX, mas removendo o gráfico)
+  const activeCategories = data.categories.filter(
+    (category) => category.currentAmount > 0
+  );
+
+  if (activeCategories.length === 0) {
     return (
       <WidgetEmptyState
         icon={<RiPieChartLine className="size-6 text-muted-foreground" />}
@@ -53,7 +58,7 @@ export function ExpensesByCategoryWidget({
 
   return (
     <div className="flex flex-col px-0">
-      {data.categories.map((category) => {
+      {activeCategories.map((category) => {
         const IconComponent = category.categoryIcon
           ? getIconComponent(category.categoryIcon)
           : null;
@@ -82,15 +87,15 @@ export function ExpensesByCategoryWidget({
         return (
           <div
             key={category.categoryId}
-            className="flex flex-col py-2 border-b border-dashed last:border-0"
+            className="flex flex-col border-b border-dashed py-2 last:border-0"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                <div className="bg-muted flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg">
                   {IconComponent ? (
-                    <IconComponent className="size-4 text-foreground" />
+                    <IconComponent className="text-foreground size-4" />
                   ) : (
-                    <span className="text-xs font-semibold uppercase text-muted-foreground">
+                    <span className="text-muted-foreground text-xs font-semibold uppercase">
                       {initials}
                     </span>
                   )}
@@ -100,16 +105,16 @@ export function ExpensesByCategoryWidget({
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/categorias/${category.categoryId}?periodo=${periodParam}`}
-                      className="flex max-w-full items-center gap-1 text-sm font-medium text-foreground underline-offset-2 hover:underline"
+                      className="text-foreground flex max-w-full items-center gap-1 text-sm font-medium underline-offset-2 hover:underline"
                     >
                       <span className="truncate">{category.categoryName}</span>
                       <RiExternalLinkLine
-                        className="size-3 shrink-0 text-muted-foreground"
+                        className="text-muted-foreground size-3 shrink-0"
                         aria-hidden
                       />
                     </Link>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground flex items-center gap-2 text-xs">
                     <span>
                       {formatPercentage(category.percentageOfTotal)} da despesa
                       total

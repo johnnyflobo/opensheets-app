@@ -1,0 +1,212 @@
+import { ActiveShapePieChart } from "@/components/dashboard/reports/active-shape-pie-chart";
+import MoneyValues from "@/components/money-values";
+import type { ExpensesByCategoryData } from "@/lib/dashboard/categories/expenses-by-category";
+import { getIconComponent } from "@/lib/utils/icons";
+import { formatPeriodForUrl } from "@/lib/utils/period";
+import {
+  RiArrowDownLine,
+  RiArrowUpLine,
+  RiExternalLinkLine,
+  RiPieChartLine,
+  RiWallet3Line,
+} from "@remixicon/react";
+import Link from "next/link";
+import { WidgetEmptyState } from "../../widget-empty-state";
+
+type ExpensesByCategoryReportProps = {
+  data: ExpensesByCategoryData;
+  period: string;
+};
+
+const buildInitials = (value: string) => {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return "CT";
+  }
+  if (parts.length === 1) {
+    const firstPart = parts[0];
+    return firstPart ? firstPart.slice(0, 2).toUpperCase() : "CT";
+  }
+  const firstChar = parts[0]?.[0] ?? "";
+  const secondChar = parts[1]?.[0] ?? "";
+  return `${firstChar}${secondChar}`.toUpperCase() || "CT";
+};
+
+const formatPercentage = (value: number) => {
+  return `${Math.abs(value).toFixed(0)}%`;
+};
+
+// Cores para o gráfico (pode ser movido para uma constante ou gerado dinamicamente)
+const COLORS = [
+  "#2563eb", // blue-600
+  "#16a34a", // green-600
+  "#d97706", // amber-600
+  "#dc2626", // red-600
+  "#9333ea", // purple-600
+  "#0891b2", // cyan-600
+  "#db2777", // pink-600
+  "#4f46e5", // indigo-600
+];
+
+export function ExpensesByCategoryReport({
+  data,
+  period,
+}: ExpensesByCategoryReportProps) {
+  const periodParam = formatPeriodForUrl(period);
+
+  // Filtra categorias com valor zero
+  const activeCategories = data.categories.filter(
+    (category) => category.currentAmount > 0
+  );
+
+  if (activeCategories.length === 0) {
+    return (
+      <WidgetEmptyState
+        icon={<RiPieChartLine className="size-6 text-muted-foreground" />}
+        title="Nenhuma despesa encontrada"
+        description="Quando houver despesas registradas, elas aparecerão aqui."
+      />
+    );
+  }
+
+  // Prepara dados para o gráfico
+  const chartData = activeCategories.map((category, index) => ({
+    name: category.categoryName,
+    value: category.currentAmount,
+    fill: COLORS[index % COLORS.length],
+  }));
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="flex items-center justify-center overflow-hidden">
+        <ActiveShapePieChart data={chartData} />
+      </div>
+
+      <div className="grid content-start grid-cols-1 gap-x-12 gap-y-2 sm:grid-cols-2">
+        {activeCategories.map((category) => {
+          const IconComponent = category.categoryIcon
+            ? getIconComponent(category.categoryIcon)
+            : null;
+          const initials = buildInitials(category.categoryName);
+          const hasIncrease =
+            category.percentageChange !== null && category.percentageChange > 0;
+          const hasDecrease =
+            category.percentageChange !== null && category.percentageChange < 0;
+          const hasBudget = category.budgetAmount !== null;
+          const budgetExceeded =
+            hasBudget &&
+            category.budgetUsedPercentage !== null &&
+            category.budgetUsedPercentage > 100;
+
+          const formatCurrency = (value: number) =>
+            new Intl.NumberFormat("pt-BR", {
+              style: "currency",
+              currency: "BRL",
+            }).format(value);
+
+          const exceededAmount =
+            budgetExceeded && category.budgetAmount
+              ? category.currentAmount - category.budgetAmount
+              : 0;
+
+          return (
+            <div
+              key={category.categoryId}
+              className="flex flex-col border-b border-dashed py-2"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <div className="bg-muted flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+                    {IconComponent ? (
+                      <IconComponent className="text-foreground size-4" />
+                    ) : (
+                      <span className="text-muted-foreground text-xs font-semibold uppercase">
+                        {initials}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/categorias/${category.categoryId}?periodo=${periodParam}`}
+                        className="text-foreground flex max-w-full items-center gap-1 text-sm font-medium underline-offset-2 hover:underline"
+                      >
+                        <span className="truncate">
+                          {category.categoryName}
+                        </span>
+                        <RiExternalLinkLine
+                          className="text-muted-foreground size-3 shrink-0"
+                          aria-hidden
+                        />
+                      </Link>
+                    </div>
+                    <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                      <span>
+                        {formatPercentage(category.percentageOfTotal)} da
+                        despesa total
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 flex-col items-end gap-0.5">
+                  <MoneyValues
+                    className="text-foreground"
+                    amount={category.currentAmount}
+                  />
+                  {category.percentageChange !== null && (
+                    <span
+                      className={`flex items-center gap-0.5 text-xs ${
+                        hasIncrease
+                          ? "text-red-600"
+                          : hasDecrease
+                          ? "text-green-600"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {hasIncrease && <RiArrowUpLine className="size-3" />}
+                      {hasDecrease && <RiArrowDownLine className="size-3" />}
+                      {formatPercentage(category.percentageChange)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {hasBudget && category.budgetUsedPercentage !== null && (
+                <div className="ml-11 flex items-center gap-1.5 text-xs">
+                  <RiWallet3Line
+                    className={`size-3 ${
+                      budgetExceeded
+                        ? "text-red-600"
+                        : "text-blue-600 dark:text-blue-400"
+                    }`}
+                  />
+                  <span
+                    className={
+                      budgetExceeded
+                        ? "text-red-600"
+                        : "text-blue-600 dark:text-blue-400"
+                    }
+                  >
+                    {budgetExceeded ? (
+                      <>
+                        {formatPercentage(category.budgetUsedPercentage)} do
+                        limite - excedeu em {formatCurrency(exceededAmount)}
+                      </>
+                    ) : (
+                      <>
+                        {formatPercentage(category.budgetUsedPercentage)} do
+                        limite
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
