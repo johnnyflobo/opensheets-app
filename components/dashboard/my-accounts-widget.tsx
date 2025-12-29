@@ -14,7 +14,8 @@ import { WidgetEmptyState } from "../widget-empty-state";
 
 type MyAccountsWidgetProps = {
   accounts: DashboardAccount[];
-  totalBalance: number;
+  totalCurrentBalance: number;
+  totalForecastBalance: number;
   maxVisible?: number;
   period: string;
 };
@@ -37,7 +38,7 @@ const buildInitials = (name: string) => {
 
 export function MyAccountsWidget({
   accounts,
-  totalBalance,
+  totalCurrentBalance,
   maxVisible = 5,
   period,
 }: MyAccountsWidgetProps) {
@@ -50,9 +51,9 @@ export function MyAccountsWidget({
   return (
     <>
       <CardHeader className="pb-4 px-0">
-        <CardDescription>Saldo Total</CardDescription>
+        <CardDescription>Saldo Atual</CardDescription>
         <div className="text-2xl text-foreground">
-          <MoneyValues amount={totalBalance} />
+          <MoneyValues amount={totalCurrentBalance} />
         </div>
       </CardHeader>
 
@@ -110,9 +111,7 @@ export function MyAccountsWidget({
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-end gap-0.5 text-right">
-                    <MoneyValues amount={account.balance} />
-                  </div>
+                  <MoneyValues amount={account.currentBalance} />
                 </li>
               );
             })}

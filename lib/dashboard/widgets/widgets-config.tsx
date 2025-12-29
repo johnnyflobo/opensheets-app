@@ -57,7 +57,8 @@ export const widgetsConfig: WidgetConfig[] = [
     component: ({ data, period }) => (
       <AccountsAnalysisWidget
         accounts={data.accountsSnapshot.accounts}
-        totalBalance={data.accountsSnapshot.totalBalance}
+        totalCurrentBalance={data.accountsSnapshot.totalCurrentBalance}
+        totalForecastBalance={data.accountsSnapshot.totalForecastBalance}
         invoices={data.invoicesSnapshot.invoices}
         period={period}
       />

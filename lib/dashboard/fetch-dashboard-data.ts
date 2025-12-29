@@ -38,7 +38,7 @@ export async function fetchDashboardData(userId: string, period: string) {
     expensesByCategoryData,
   ] = await Promise.all([
     fetchDashboardCardMetrics(userId, period),
-    fetchDashboardAccounts(userId),
+    fetchDashboardAccounts(userId, period),
     fetchDashboardInvoices(userId, period),
     fetchDashboardBoletos(userId, period),
     fetchDashboardNotifications(userId, period),

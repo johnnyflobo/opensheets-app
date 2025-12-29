@@ -8,14 +8,16 @@ import type { DashboardInvoice } from "@/lib/dashboard/invoices";
 
 type AccountsAnalysisWidgetProps = {
   accounts: DashboardAccount[];
-  totalBalance: number;
+  totalCurrentBalance: number;
+  totalForecastBalance: number;
   invoices: DashboardInvoice[];
   period: string;
 };
 
 export function AccountsAnalysisWidget({
   accounts,
-  totalBalance,
+  totalCurrentBalance,
+  totalForecastBalance,
   invoices,
   period,
 }: AccountsAnalysisWidgetProps) {
@@ -29,7 +31,8 @@ export function AccountsAnalysisWidget({
         <TabsContent value="accounts" className="mt-0">
           <MyAccountsWidget
             accounts={accounts}
-            totalBalance={totalBalance}
+            totalCurrentBalance={totalCurrentBalance}
+            totalForecastBalance={totalForecastBalance}
             period={period}
           />
         </TabsContent>
