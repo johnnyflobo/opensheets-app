@@ -146,69 +146,108 @@ export async function fetchDashboardCardMetrics(
   const currentTotals = ensurePeriodTotals(periodTotals, period);
   const previousTotals = ensurePeriodTotals(periodTotals, previousPeriod);
 
-  // Determine mode for Current and Previous periods
-  // If period is in the future, we show Projected (What you will have).
-  // If period is now or past, we show Realized (What you have/had).
-  const isCurrentFuture = period > currentPeriod;
-  const isPreviousFuture = previousPeriod > currentPeriod;
-
-  // Calculate balance using the formula: Saldo = Saldo Anterior + Receitas - Despesas
-  // Always use the same receitas/despesas values shown in the cards for consistency
-  const calculateBalanceFromTotals = async (targetPeriod: string, projected: boolean) => {
-    // Calculate previous balance (cumulative up to previous period)
-    // For balance calculation, we only consider transactions linked to accounts
-    const previousPeriodForTarget = getPreviousPeriod(targetPeriod);
-    
-    // Calculate all movements up to (and including) the previous period
-    const [previousMovementsResult] = await db
+  // 3. Calculate Saldo for a specific period
+  // For current/past periods: sum ONLY settled transactions up to that period (Saldo Realizado)
+  // For future periods: sum ALL transactions up to that period (Saldo Previsto)
+  //   - Includes credit card expenses for better financial planning
+  
+  const calculateSaldo = async (targetPeriod: string, isFuture: boolean): Promise<number> => {
+    // Query 1: Account movements (contaId not null)
+    const [accountResult] = await db
       .select({
-        totalMovements: sum(lancamentos.amount).mapWith(Number),
+        totalMovements: isFuture
+          ? sql<number>`
+              coalesce(
+                sum(
+                  case
+                    when ${lancamentos.note} = ${INITIAL_BALANCE_NOTE} then 0
+                    else ${lancamentos.amount}
+                  end
+                ),
+                0
+              )
+            `
+          : sql<number>`
+              coalesce(
+                sum(
+                  case
+                    when ${lancamentos.note} = ${INITIAL_BALANCE_NOTE} then 0
+                    when ${lancamentos.isSettled} = true then ${lancamentos.amount}
+                    else 0
+                  end
+                ),
+                0
+              )
+            `,
       })
-      .from(lancamentos)
-      .leftJoin(contas, eq(lancamentos.contaId, contas.id))
-      .innerJoin(pagadores, eq(lancamentos.pagadorId, pagadores.id))
+      .from(contas)
+      .leftJoin(
+        lancamentos,
+        and(
+          eq(lancamentos.contaId, contas.id),
+          eq(lancamentos.userId, userId),
+          lte(lancamentos.period, targetPeriod)
+        )
+      )
+      .leftJoin(
+        pagadores,
+        eq(lancamentos.pagadorId, pagadores.id)
+      )
       .where(
         and(
-          eq(lancamentos.userId, userId),
-          lte(lancamentos.period, previousPeriodForTarget),
-          isNotNull(lancamentos.contaId),
+          eq(contas.userId, userId),
           eq(contas.excludeFromBalance, false),
-          ne(lancamentos.note, INITIAL_BALANCE_NOTE),
-          eq(pagadores.role, PAGADOR_ROLE_ADMIN),
-          ne(lancamentos.transactionType, TRANSFERENCIA),
-          or(
-            isNull(lancamentos.note),
-            not(ilike(lancamentos.note, `${ACCOUNT_AUTO_INVOICE_NOTE_PREFIX}%`))
-          ),
-          // For past periods, only count settled transactions
-          projected 
-            ? undefined 
-            : eq(lancamentos.isSettled, true)
+          sql`(${lancamentos.id} IS NULL OR ${pagadores.role} = ${PAGADOR_ROLE_ADMIN})`
         )
       );
     
-    // Previous balance = Initial Balance + All movements up to previous period
-    const previousSaldo = totalInitialBalance + (previousMovementsResult?.totalMovements ?? 0);
-
-    // Use receitas and despesas from cards (same values shown to user)
-    // These are calculated without isSettled filter for consistency with card display
-    const periodTotalsForBalance = ensurePeriodTotals(periodTotals, targetPeriod);
-    const receitas = periodTotalsForBalance.receitas;
-    const despesas = periodTotalsForBalance.despesas;
-
-    // Saldo = Saldo Anterior + Receitas - Despesas
-    return previousSaldo + receitas - despesas;
+    const accountMovements = Number(accountResult?.totalMovements ?? 0);
+    
+    // Query 2: For future periods, also include credit card expenses
+    // These are expenses linked to cards (cartaoId not null) but NOT linked to accounts (contaId is null)
+    // This helps predict the real financial impact when invoices are paid
+    let cardExpenses = 0;
+    
+    if (isFuture) {
+      const [cardResult] = await db
+        .select({
+          totalExpenses: sql<number>`
+            coalesce(
+              sum(${lancamentos.amount}),
+              0
+            )
+          `,
+        })
+        .from(lancamentos)
+        .innerJoin(pagadores, eq(lancamentos.pagadorId, pagadores.id))
+        .where(
+          and(
+            eq(lancamentos.userId, userId),
+            lte(lancamentos.period, targetPeriod),
+            isNotNull(lancamentos.cartaoId),
+            isNull(lancamentos.contaId),  // Only card-only expenses (not invoice payments)
+            eq(lancamentos.transactionType, DESPESA),
+            eq(pagadores.role, PAGADOR_ROLE_ADMIN),
+            or(
+              isNull(lancamentos.note),
+              not(ilike(lancamentos.note, `${ACCOUNT_AUTO_INVOICE_NOTE_PREFIX}%`))
+            )
+          )
+        );
+      
+      cardExpenses = Number(cardResult?.totalExpenses ?? 0);
+    }
+    
+    // Saldo = Saldo Inicial + Movimentações em Conta + Despesas de Cartão (para previsão)
+    return totalInitialBalance + accountMovements + cardExpenses;
   };
 
-  // Calculate previous balance first (for display)
-  const previousSaldo = await calculateBalanceFromTotals(previousPeriod, isPreviousFuture);
-  
-  // Calculate current balance using the same previous balance shown in the card
-  // This ensures consistency: Saldo Atual = Saldo Anterior (shown) + Receitas - Despesas
-  const currentTotalsForBalance = ensurePeriodTotals(periodTotals, period);
-  const receitas = currentTotalsForBalance.receitas;
-  const despesas = currentTotalsForBalance.despesas;
-  const currentSaldo = previousSaldo + receitas - despesas;
+  // Determine if we're viewing a future period
+  const isCurrentFuture = period > currentPeriod;
+  const isPreviousFuture = previousPeriod > currentPeriod;
+
+  const currentSaldo = await calculateSaldo(period, isCurrentFuture);
+  const previousSaldo = await calculateSaldo(previousPeriod, isPreviousFuture);
 
   return {
     period,
